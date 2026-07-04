@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rakshak (रक्षक) — Personal Safety Companion</title>
+
+    <!-- Leaflet.js Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Core style -->
+    <link rel="stylesheet" href="style.css" />
+    <meta name="theme-color" content="#ff3b30">
+    <link rel="manifest" href="manifest.json">
+</head>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(err => console.error('SW registration failed:', err));
+        });
+    }
+</script>
+
+<body>
+
+    <!-- Ambient glowing background orbs -->
+    <div class="bg-gradient-radial"></div>
+
+    <!-- Distress strobe screen flash overlay -->
+    <div id="strobeOverlay" class="strobe-alert-overlay"></div>
+
+    <!-- ============================================================
+       IPHONE/MOBILE DEVICE CONTAINER PREVIEW (ON DESKTOP)
+       ============================================================ */ -->
+    <div class="device-wrapper">
+        <!-- Physical Notch Design for Desktop preview -->
+        <div class="device-notch"></div>
+
+        <!-- App Header with Status info & Lang Switch -->
+        <header class="app-header">
+            <div class="brand-section">
+                <div>
+                    <h1 class="brand-logo" id="brandLogo">RAKSHAK</h1>
+                    <div class="brand-subtitle" id="brandSub">Safety Companion</div>
+                </div>
+            </div>
+
+            <div class="header-controls">
+                <!-- Lang Toggle Button -->
+                <button id="langToggleBtn" class="lang-toggle-btn active" onclick="toggleLanguage()">
+                    🌐 <span id="langBtnText">मराठी</span>
+                </button>
+
+                <!-- Safe status tag -->
+                <div id="safetyStatusTag" class="status-indicator">
+                    <span class="status-dot active"></span>
+                    <span id="statusText">Safe</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ============================================================
+           MAIN APP VIEWS (SCROLL CONTENT)
+           ============================================================ */ -->
+        <main class="app-content" id="appMainScroll">
+
+            <!-- --------------------------------------------------------
+               TAB 1: SOS HOME / DASHBOARD
+               -------------------------------------------------------- -->
+            <section id="panel-home" class="tab-panel active">
+                <div class="dashboard-summary">
+                    <div class="summary-tile">
+                        <div class="tile-label" id="lblLocalThreat">Threat level</div>
+                        <div class="tile-value" style="color: var(--secondary);" id="valThreatLevel">LOW</div>
+                    </div>
+                    <div class="summary-tile">
+                        <div class="tile-label" id="lblAreaScore">Safety Score</div>
+                        <div class="tile-value" style="color: var(--secondary);" id="valSafetyScore">9.4/10</div>
+                    </div>
+                    <div class="summary-tile">
+                        <div class="tile-label" id="lblTime">Local Time</div>
+                        <div class="tile-value" id="lblClock">12:00 PM</div>
+                    </div>
+                </div>
+
+                <!-- SOS Button Container -->
+                <div class="sos-container">
+                    <div class="sos-button-wrapper">
+                        <!-- Ripple waves -->
+                        <div class="sos-pulse-ring"></div>
+                        <div class="sos-pulse-ring"></div>
+                        <div class="sos-pulse-ring"></div>
+
+                        <!-- Main circular SOS button -->
+                        <button id="sosBtn" class="sos-main-btn" onclick="startSosSequence()">
+                            <span class="sos-text-en">SOS</span>
+                            <span class="sos-text-mr" id="sosTextSub">मदत हवी आहे</span>
+                        </button>
+
+                        <!-- Countdown ring overlay -->
+                        <div id="countdownRing" class="countdown-overlay">
+                            <span class="countdown-number" id="countdownSec">3</span>
+                            <button class="countdown-cancel-btn" id="btnCancelSos"
+                                onclick="cancelSosSequence()">Cancel</button>
+                        </div>
+                    </div>
+                    <span class="sos-btn-hint" id="sosHint">Press SOS in case of emergency</span>
+                </div>
+
+                <!-- ✅ NEW: Nearest Police Station Card -->
+                <div class="safety-card police-card" id="policeStationCard">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h3 class="card-title" style="margin-bottom:0;">
+                            <i data-lucide="shield"></i> <span id="policeCardTitle">Nearest Police Station</span>
+                        </h3>
+                        <button onclick="findNearestPolice()" class="refresh-police-btn" id="btnRefreshPolice">
+                            <i data-lucide="refresh-cw"></i>
+                        </button>
+                    </div>
+                    <div id="policeStationInfo">
+                        <div class="police-loading-state" id="policeLoadingState">
+                            <i data-lucide="loader"></i>
+                            <span id="policeLoadingText">Tap refresh to find nearest station...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ NEW: Live Location Share Panel -->
+                <div class="safety-card location-share-card" id="locationShareCard">
+                    <h3 class="card-title" style="margin-bottom:8px;">
+                        <i data-lucide="send"></i> <span id="liveLocTitle">Share Live Location</span>
+                    </h3>
+                    <p class="card-desc" id="liveLocDesc" style="margin-bottom:12px;">Send your exact Google Maps
+                        location to your guardians instantly via WhatsApp.</p>
+
+                    <button class="safety-btn" id="btnShareAllContacts" onclick="shareLocationToAll()"
+                        style="margin-bottom:10px;">
+                        <i data-lucide="share-2"></i> <span id="btnShareAllTxt">Send Location to ALL Guardians</span>
+                    </button>
+
+                    <div id="individualShareList" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+                        <!-- Injected per contact by JS -->
+                    </div>
+                </div>
+
+                <!-- Scream Detector Switch -->
+                <div class="safety-card">
+                    <div class="detector-switch-row">
+                        <div class="switch-label-group">
+                            <h3 class="card-title" style="margin-bottom:0px">
+                                <i data-lucide="mic"></i> <span id="screamTitle">Scream Detector</span>
+                            </h3>
+                            <span class="switch-sublabel" id="screamDesc">Triggers SOS automatically upon loud
+                                scream</span>
+                        </div>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="screamDetectorToggle" onchange="toggleScreamDetector()">
+                            <span class="slider-switch red-mode"></span>
+                        </label>
+                    </div>
+
+                    <!-- Sound Bar visualizer -->
+                    <div id="audioVisualBar" class="audio-visualizer-bar">
+                        <div id="audioFillProgress" class="audio-fill-progress"></div>
+                    </div>
+                </div>
+
+                <!-- Parent Monitor Card -->
+                <div class="safety-card"
+                    style="background: linear-gradient(135deg, rgba(8, 203, 255, 0.1), rgba(123, 47, 255, 0.1)); border-color: rgba(123, 47, 255, 0.3); border-width: 2px;">
+                    <h3 class="card-title">
+                        <i data-lucide="eye"></i>
+                        <span>👨‍👧 पालक निगराणी (Parent Monitor)</span>
+                    </h3>
+                    <p class="card-desc" style="margin-bottom:15px;">मुलाच्या सुरक्षिततेसाठी Live निगराणी. आई-बाबांना
+                        मुलाचा Live Video, Audio आणि Location पाहता येईल.</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <a href="parent-monitor.html" class="safety-btn"
+                            style="background: linear-gradient(135deg, #7b2fff, #00d4ff); color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:12px; border-radius:14px; text-decoration:none; font-weight:700; font-size:12px; text-align:center;">
+                            <i data-lucide="shield-check"></i> मी मालक (Parent) आहे
+                            <span style="font-size:9px; opacity:0.8; font-weight:400; margin-top:2px;">(Dashboard
+                                उघडा)</span>
+                        </a>
+                        <a href="child-qr.html" class="safety-btn"
+                            style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); color:var(--text); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:12px; border-radius:14px; text-decoration:none; font-weight:700; font-size:12px; text-align:center;">
+                            <i data-lucide="qr-code"></i> मी मुल (Child) आहे
+                            <span style="font-size:9px; opacity:0.8; font-weight:400; margin-top:2px;">(QR Scan
+                                करा)</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Action Safety Tools -->
+                <div class="safety-card">
+                    <h3 class="card-title"><i data-lucide="shield-alert"></i> <span id="quickToolsTitle">Quick Help
+                            Tools</span></h3>
+                    <p class="card-desc" id="quickToolsDesc">Tap to immediately scare threats or initiate escape
+                        scenarios.</p>
+
+                    <div class="quick-tools-grid">
+                        <button id="btnToolSiren" class="tool-button" onclick="toggleSirenAlarm()">
+                            <i data-lucide="volume-2"></i>
+                            <span id="txtToolSiren">Siren</span>
+                        </button>
+                        <button id="btnToolStrobe" class="tool-button" onclick="toggleStrobeFlash()">
+                            <i data-lucide="zap"></i>
+                            <span id="txtToolStrobe">Strobe Light</span>
+                        </button>
+                        <button id="btnToolFakeCall" class="tool-button" onclick="openFakeCallConfig()">
+                            <i data-lucide="phone-call"></i>
+                            <span id="txtToolFakeCall">Fake Call</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- --------------------------------------------------------
+               TAB 2: SAFETY SURVEILLANCE CAM
+               -------------------------------------------------------- -->
+            <section id="panel-camera" class="tab-panel">
+                <div class="safety-card" style="padding: 16px;">
+                    <h3 class="card-title"><i data-lucide="video"></i> <span id="camTitle">Live Surveillance</span></h3>
+                    <p class="card-desc" id="camDesc">Capture surrounding visuals securely. Snapshots are stored in
+                        local safety ledger.</p>
+
+                    <!-- Camera Video Stream Area -->
+                    <div class="camera-viewport-wrapper">
+                        <!-- Scanline visual filters -->
+                        <div id="cameraScanline" class="camera-scanline"></div>
+
+                        <!-- Video output element -->
+                        <video id="cameraStream" autoplay playsinline muted></video>
+
+                        <!-- Dynamic Overlay Info HUD -->
+                        <div id="cameraHUD" class="camera-hud">
+                            <div class="hud-rec-indicator">
+                                <span class="hud-rec-dot"></span> <span id="txtRecordingHUD">SECURE STREAM</span>
+                            </div>
+                            <div id="hudTimestamp" class="hud-stamp">12:00:00</div>
+                        </div>
+
+                        <!-- Offline placeholder -->
+                        <div id="cameraPlaceholder" class="camera-placeholder">
+                            <i data-lucide="camera-off"></i>
+                            <span id="camPlaceholderText">Surveillance feed is stopped. Click Start Stream below.</span>
+                        </div>
+                    </div>
+
+                    <!-- Control buttons -->
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btnStartCamera" class="safety-btn" onclick="startCameraStream()">
+                            <i data-lucide="video"></i> <span id="btnStartCameraTxt">Start Stream</span>
+                        </button>
+                        <button id="btnStopCamera" class="safety-btn secondary-btn" style="display:none"
+                            onclick="stopCameraStream()">
+                            <i data-lucide="video-off"></i> <span id="btnStopCameraTxt">Stop Stream</span>
+                        </button>
+                        <button id="btnSwitchCamera" class="safety-btn secondary-btn"
+                            style="width: auto; padding: 12px;" onclick="switchCamera()">
+                            <i data-lucide="refresh-cw"></i>
+                        </button>
+                        <button id="btnCaptureSnap" class="safety-btn green-btn" style="width: auto; padding: 12px;"
+                            onclick="takeSnapshotManual()">
+                            <i data-lucide="camera"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Snapshot log -->
+                <div class="safety-card snapshots-container">
+                    <h4 class="card-title" style="font-size:14px;"><i data-lucide="image"></i> <span
+                            id="snapsTitle">Safety Ledger Snaps</span></h4>
+                    <div id="snapshotsGrid" class="snapshots-grid">
+                        <!-- JavaScript will inject captured photos here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- --------------------------------------------------------
+               TAB 3: SAFETY MAP
+               -------------------------------------------------------- -->
+            <section id="panel-map" class="tab-panel">
+                <div class="safety-card" style="padding: 12px; margin-bottom: 12px;">
+                    <h3 class="card-title"><i data-lucide="map"></i> <span id="mapTitle">Safety Map Tracker</span></h3>
+                    <p class="card-desc" id="mapDesc" style="margin-bottom:8px;">Locate nearby safety assistance centers
+                        and view active incidents.</p>
+                </div>
+
+                <!-- Map wrapper -->
+                <div class="map-container-wrapper">
+                    <div id="safetyMap"></div>
+
+                    <!-- Floating overlay map controls -->
+                    <div class="map-control-overlay">
+                        <button class="map-overlay-btn" onclick="findCurrentLocation()">
+                            <i data-lucide="locate"></i> <span id="mapOverlayLocate">My Location</span>
+                        </button>
+                        <button class="map-overlay-btn" onclick="openReportIncidentSheet()">
+                            <i data-lucide="alert-triangle"></i> <span id="mapOverlayReport">Report Incident</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Safety locations legend/list -->
+                <div class="safety-card">
+                    <h4 class="card-title" style="font-size:14px;"><i data-lucide="shield-check"></i> <span
+                            id="hubsTitle">Nearby Safety Centers</span></h4>
+                    <div id="safeHubsList"
+                        style="display:flex; flex-direction:column; gap:8px; font-size:12px; margin-top:8px;">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- --------------------------------------------------------
+               TAB 4: SAFETY ACADEMY
+               -------------------------------------------------------- -->
+            <section id="panel-academy" class="tab-panel">
+                <!-- Dual Academy selector buttons -->
+                <div class="academy-selector">
+                    <button id="btnAcademyKids" class="academy-tab-btn active kids-mode"
+                        onclick="switchAcademyMode('kids')">
+                        🧒 <span id="academyTabKids">Kids Mode (मुलं-मुली)</span>
+                    </button>
+                    <button id="btnAcademyAdults" class="academy-tab-btn" onclick="switchAcademyMode('adults')">
+                        🧑 <span id="academyTabAdults">Adults Mode (प्रौढ)</span>
+                    </button>
+                </div>
+
+                <!-- ---------------- KIDS ACADEMY VIEW ---------------- -->
+                <div id="academy-kids" class="academy-content-panel active">
+
+                    <!-- Animated Safety Video Card -->
+                    <div class="safety-card" style="padding: 16px;">
+                        <h3 class="card-title"><i data-lucide="play-circle"></i> <span id="kidsVideoTitle">Body Safety
+                                Video</span></h3>
+                        <p class="card-desc" id="kidsVideoDesc">Watch this short animation to learn about Safe and
+                            Unsafe Touch rules.</p>
+
+                        <div
+                            style="width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--card-border); background-color: #020617;">
+                            <video id="kidsVideoPlayer" style="width: 100%; display: block;" controls preload="metadata"
+                                poster="child_safety_poster.png">
+                                <source src="safety_video.mp4" type="video/mp4">
+                                <source
+                                    src="https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-happy-school-girl-43285-large.mp4"
+                                    type="video/mp4">
+                                Your browser does not support the HTML5 video tag.
+                            </video>
+                        </div>
+                    </div>
+
+                    <!-- Quiz panel -->
+                    <div class="safety-card quiz-wrapper">
+                        <h3 class="card-title"><i data-lucide="sparkles"></i> <span id="kidsQuizTitle">Kids Safety
+                                Quiz</span></h3>
+                        <p class="card-desc" id="kidsQuizDesc">Test safety knowledge. Earn your Safety Badge!</p>
+
+                        <div id="quizContainer">
+                            <div class="quiz-question-box">
+                                <div id="quizQuestion" class="quiz-question">Question text appears here...</div>
+                                <div id="quizOptions" class="quiz-options">
+                                    <!-- Injected options buttons -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reward badge -->
+                        <div id="certificateBadgeBox" class="certificate-badge-box">
+                            <i data-lucide="award"></i>
+                            <div class="certificate-title" id="certTitle">SAFETY CHAMPION</div>
+                            <div class="certificate-subtitle" id="certSub">Congratulations! You answered all questions
+                                correctly.</div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Safety Cards -->
+                    <div class="academy-tips-scroller">
+                        <div class="tip-card">
+                            <div class="tip-badge-icon">👍</div>
+                            <div class="tip-card-body">
+                                <h4 id="tipKids1Title">Good Touch vs Bad Touch</h4>
+                                <p id="tipKids1Desc">Safe touch feels comfortable, like a handshake. If any touch makes
+                                    you feel scared, confused, or sad, say NO immediately and tell parents.</p>
+                            </div>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-badge-icon">🚌</div>
+                            <div class="tip-card-body">
+                                <h4 id="tipKids2Title">School Bus Safety</h4>
+                                <p id="tipKids2Desc">Always sit properly in the bus. Do not poke your head or hands out
+                                    of windows, and only board or alight after the bus stops fully.</p>
+                            </div>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-badge-icon">🚫</div>
+                            <div class="tip-card-body">
+                                <h4 id="tipKids3Title">Stranger Danger</h4>
+                                <p id="tipKids3Desc">Never accept chocolates, gifts, or rides from people you do not
+                                    know. Keep safe distance and run to a crowd if followed.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ---------------- ADULTS ACADEMY VIEW ---------------- -->
+                <div id="academy-adults" class="academy-content-panel">
+                    <div class="academy-tips-scroller">
+                        <div class="tip-card">
+                            <div class="tip-badge-icon">🥋</div>
+                            <div class="tip-card-body">
+                                <h4 id="tipAdults1Title">Self Defense Actions</h4>
+                                <p id="tipAdults1Desc">Aim for sensitive points (eyes, throat, groin) if physically
+                                    assaulted. Use keys or phone as improvised defense tools.</p>
+                            </div>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-badge-icon">🚶‍♀️</div>
+                            <div class="tip-card-body">
+                                <h4 id="tipAdults2Title">Safe Solo Travel</h4>
+                                <p id="tipAdults2Desc">Always share live ride tracking links with family. Avoid dark
+                                    alleyways and walk with posture that shows high confidence.</p>
+                            </div>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-badge-icon">💻</div>
+                            <div class="tip-card-body">
+                                <h4 id="tipAdults3Title">Cyber Safety & Stalking</h4>
+                                <p id="tipAdults3Desc">Enable strict double-factor authentication on social portals.
+                                    Never share instant locations or travel check-ins publicly.</p>
+                            </div>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-badge-icon">⚖️</div>
+                            <div class="tip-card-body">
+                                <h4 id="tipAdults4Title">Legal & Police Rights</h4>
+                                <p id="tipAdults4Desc">Women cannot be arrested after sunset or before sunrise without a
+                                    lady constable. Right to file Zero FIR in any nearest police station.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- --------------------------------------------------------
+               TAB 5: CONTACTS & DIRECTORY
+               -------------------------------------------------------- -->
+            <section id="panel-contacts" class="tab-panel">
+                <!-- Guard Circle (Trusted family/friends contacts) -->
+                <div class="safety-card">
+                    <h3 class="card-title"><i data-lucide="users"></i> <span id="contactsTitle">Guard Circle</span></h3>
+                    <p class="card-desc" id="contactsDesc">These trusted contacts will receive alerts and emergency
+                        location link immediately when SOS triggers.</p>
+
+                    <div id="contactsListContainer" class="contacts-list-container">
+                        <!-- Filled by JavaScript -->
+                    </div>
+
+                    <button class="safety-btn green-btn" onclick="openAddContactSheet()">
+                        <i data-lucide="user-plus"></i> <span id="btnAddContactTxt">Add Guardian Contact</span>
+                    </button>
+                </div>
+
+                <!-- Emergency Helpline Card Directory -->
+                <div class="safety-card">
+                    <h3 class="card-title"><i data-lucide="phone"></i> <span id="helpTitle">Emergency Helplines</span>
+                    </h3>
+                    <p class="card-desc" id="helpDesc">Direct tap-to-call links to official helplines (Simulated
+                        dialing).</p>
+
+                    <div class="helplines-grid-layout">
+                        <a href="tel:112" class="helpline-quick-card" onclick="simulateDial('112', event)">
+                            <div class="helpline-number-tag">112</div>
+                            <div class="helpline-label-tag" id="hlNational">All Emergency</div>
+                            <div class="helpline-sub-tag" id="hlNationalSub">Police, Fire, Disaster</div>
+                        </a>
+                        <a href="tel:1091" class="helpline-quick-card" onclick="simulateDial('1091', event)">
+                            <div class="helpline-number-tag">1091</div>
+                            <div class="helpline-label-tag" id="hlWomen">Women Helpline</div>
+                            <div class="helpline-sub-tag" id="hlWomenSub">Safety & Abuse Reports</div>
+                        </a>
+                        <a href="tel:1098" class="helpline-quick-card" onclick="simulateDial('1098', event)">
+                            <div class="helpline-number-tag">1098</div>
+                            <div class="helpline-label-tag" id="hlChild">Child Helpline</div>
+                            <div class="helpline-sub-tag" id="hlChildSub">Under-18 Support</div>
+                        </a>
+                        <a href="tel:102" class="helpline-quick-card" onclick="simulateDial('102', event)">
+                            <div class="helpline-number-tag">102</div>
+                            <div class="helpline-label-tag" id="hlMedical">Ambulance</div>
+                            <div class="helpline-sub-tag" id="hlMedicalSub">Medical Emergency</div>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ============================================================
+           BOTTOM FLOATING TAB NAVIGATION BAR
+           ============================================================ */ -->
+        <nav class="bottom-navigation">
+            <button id="navBtn-home" class="nav-tab-item active" onclick="switchTab('home')">
+                <i data-lucide="home"></i>
+                <span id="navTxtHome">Home</span>
+            </button>
+            <button id="navBtn-camera" class="nav-tab-item" onclick="switchTab('camera')">
+                <i data-lucide="video"></i>
+                <span id="navTxtCam">Safe Cam</span>
+            </button>
+            <!-- Floating Special central SOS trigger -->
+            <button id="navBtn-specialSos" class="nav-tab-item special-sos-item" onclick="startSosSequence()">
+                <i data-lucide="alert-circle" style="font-size:24px; stroke-width:3;"></i>
+            </button>
+            <button id="navBtn-map" class="nav-tab-item" onclick="switchTab('map')">
+                <i data-lucide="map-pin"></i>
+                <span id="navTxtMap">Safe Map</span>
+            </button>
+            <button id="navBtn-academy" class="nav-tab-item" onclick="switchTab('academy')">
+                <i data-lucide="book-open"></i>
+                <span id="navTxtAcademy">Academy</span>
+            </button>
+            <button id="navBtn-contacts" class="nav-tab-item" onclick="switchTab('contacts')">
+                <i data-lucide="users"></i>
+                <span id="navTxtContacts">Circle</span>
+            </button>
+        </nav>
+
+        <!-- ============================================================
+           MOCK TOAST NOTIFIER
+           ============================================================ */ -->
+        <div id="toastNotification" class="toast-overlay">
+            <i data-lucide="info"></i>
+            <span id="toastMessage">Toast message here</span>
+        </div>
+
+        <!-- ============================================================
+           MODAL 1: ADD TRUSTED CONTACT (BOTTOM SHEET)
+           ============================================================ */ -->
+        <div id="addContactOverlay" class="modal-overlay-block"
+            onclick="closeModalOnOuterClick(event, 'addContactOverlay')">
+            <div class="modal-bottom-sheet">
+                <div class="modal-header-row">
+                    <h3 class="card-title" style="margin-bottom:0;" id="mAddContactTitle">Add Guardian</h3>
+                    <button class="modal-close-icon" onclick="closeContactModal()">✕</button>
+                </div>
+                <div class="incident-form">
+                    <div class="form-group">
+                        <label for="inputContactName" id="lblCName">Full Name</label>
+                        <input type="text" id="inputContactName" class="form-input"
+                            placeholder="e.g. Papa, Rahul Sharma">
+                    </div>
+                    <div class="form-group">
+                        <label for="inputContactPhone" id="lblCPhone">Mobile Number</label>
+                        <input type="tel" id="inputContactPhone" class="form-input" placeholder="e.g. 9876543210">
+                    </div>
+                    <div class="form-group">
+                        <label for="inputContactRelation" id="lblCRelation">Relationship</label>
+                        <input type="text" id="inputContactRelation" class="form-input"
+                            placeholder="e.g. Father, Mother, Friend">
+                    </div>
+
+                    <button class="safety-btn green-btn" onclick="saveNewContact()" id="btnSaveContact">
+                        <i data-lucide="check"></i> <span id="btnSaveContactTxt">Save to Circle</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+           MODAL 2: REPORT INCIDENT DANGER ZONE
+           ============================================================ */ -->
+        <div id="reportIncidentOverlay" class="modal-overlay-block"
+            onclick="closeModalOnOuterClick(event, 'reportIncidentOverlay')">
+            <div class="modal-bottom-sheet">
+                <div class="modal-header-row">
+                    <h3 class="card-title" style="margin-bottom:0;" id="mReportTitle">Report Danger Zone</h3>
+                    <button class="modal-close-icon" onclick="closeIncidentModal()">✕</button>
+                </div>
+                <div class="incident-form">
+                    <div class="form-group">
+                        <label for="inputIncidentTitle" id="lblIncType">Incident Type</label>
+                        <select id="inputIncidentTitle" class="form-input form-select">
+                            <option value="Unsafe Dark Street" id="optUnsafeStreet">🔦 Dark Area / Poor lighting
+                            </option>
+                            <option value="Harassment Spot" id="optHarassment">⚠️ Harassment Reported Here</option>
+                            <option value="Suspicious Activity" id="optSuspicious">👀 Suspicious Crowd gathered</option>
+                            <option value="Heavy Isolation Spot" id="optIsolated">🚶 Empty/Isolated Road</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="inputIncidentDesc" id="lblIncDesc">Additional Details (Optional)</label>
+                        <input type="text" id="inputIncidentDesc" class="form-input"
+                            placeholder="e.g. Streetlights not working near school gate">
+                    </div>
+
+                    <button class="safety-btn" onclick="submitDangerIncident()" id="btnSubmitIncident">
+                        <i data-lucide="send"></i> <span id="btnSubmitIncidentTxt">Publish Alert on Map</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+           MODAL 3: FAKE CALL SCHEDULER CONFIG
+           ============================================================ */ -->
+        <div id="fakeCallConfigOverlay" class="modal-overlay-block"
+            onclick="closeModalOnOuterClick(event, 'fakeCallConfigOverlay')">
+            <div class="modal-bottom-sheet">
+                <div class="modal-header-row">
+                    <h3 class="card-title" style="margin-bottom:0;" id="mFakeTitle">Fake Call Escape Scheduler</h3>
+                    <button class="modal-close-icon" onclick="closeFakeCallModal()">✕</button>
+                </div>
+                <div class="incident-form">
+                    <p class="card-desc" id="fakeSchedulerDesc" style="margin-bottom:0px">Schedule an incoming call
+                        simulation. Useful to get out of uncomfortable, suspicious or unsafe social circles.</p>
+
+                    <div class="form-group">
+                        <label for="inputFakeCaller" id="lblFakeCaller">Caller Persona Name</label>
+                        <input type="text" id="inputFakeCaller" class="form-input"
+                            placeholder="e.g. Papa, Police HQ, Boss">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inputFakeDelay" id="lblFakeTimer">Incoming delay</label>
+                        <select id="inputFakeDelay" class="form-input form-select">
+                            <option value="5" id="optDelay5">In 5 Seconds (Quick test)</option>
+                            <option value="10" id="optDelay10">In 10 Seconds</option>
+                            <option value="30" id="optDelay30">In 30 Seconds</option>
+                            <option value="60" id="optDelay60">In 1 Minute</option>
+                            <option value="300" id="optDelay300">In 5 Minutes</option>
+                        </select>
+                    </div>
+
+                    <button class="safety-btn green-btn" onclick="scheduleFakeCallAction()" id="btnScheduleFakeCall">
+                        <i data-lucide="phone"></i> <span id="btnScheduleFakeCallTxt">Set Alert Call</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+           MODAL 4: FULLSCREEN SIMULATED INCALL DISPLAY
+           ============================================================ */ -->
+        <div id="fakeIncomingCallOverlay" class="fake-call-container">
+            <div class="caller-info-header">
+                <!-- Glowing bouncing avatar -->
+                <div id="fakeCallAvatar" class="caller-avatar ringing">👤</div>
+                <h2 id="fakeCallerName" class="caller-name">Papa</h2>
+                <div id="fakeCallStatus" class="caller-status">Incoming Safety Call...</div>
+            </div>
+
+            <!-- Incoming slide/press controls -->
+            <div class="incoming-call-controls">
+                <button class="call-btn decline" onclick="declineFakeCall()">
+                    <i data-lucide="phone-off"></i>
+                </button>
+                <button class="call-btn accept" onclick="acceptFakeCall()">
+                    <i data-lucide="phone"></i>
+                </button>
+            </div>
+
+            <!-- Active call controls (Hidden until accepted) -->
+            <div class="active-call-controls">
+                <div class="call-grid-tools">
+                    <button class="call-grid-btn">
+                        <i data-lucide="mic-off"></i>
+                        <span>mute</span>
+                    </button>
+                    <button class="call-grid-btn">
+                        <i data-lucide="grid"></i>
+                        <span>keypad</span>
+                    </button>
+                    <button id="btnCallSpeakerToggle" class="call-grid-btn active">
+                        <i data-lucide="volume-2"></i>
+                        <span>speaker</span>
+                    </button>
+                </div>
+
+                <button class="call-btn decline" style="width:64px; height:64px;" onclick="declineFakeCall()">
+                    <i data-lucide="phone-off" style="font-size:18px;"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Leaflet JS Map Engine -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Lucide Vector Icons Engine -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Application Logic Core -->
+    <script src="app.js"></script>
+</body>
+
+</html>

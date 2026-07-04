@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="mr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Good Touch & Bad Touch - Video Lesson</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .slide.active {
+            opacity: 1;
+            z-index: 5;
+        }
+
+        .text-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 12px;
+            margin: auto 15px 15px;
+            text-shadow: 1px 1px 2px #000;
+            font-size: 1.1rem;
+            font-weight: 700;
+            line-height: 1.5;
+            color: #ffeb3b;
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.5s ease-out forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        #playBtn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 10;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5);
+            transition: transform 0.2s;
+        }
+
+        #playBtn:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="video-container">
+        <button id="playBtn">▶️ Play Safety Video</button>
+
+        <div class="slide" id="slide1" style="background-image: url('hero_child.png');">
+            <div class="text-overlay">रक्षक ॲपमध्ये तुमचे स्वागत आहे! आज आपण एक अतिशय महत्त्वाची गोष्ट शिकणार आहोत...
+                'गुड टच' आणि 'बॅड टच'.</div>
+        </div>
+
+        <div class="slide" id="slide2" style="background-image: url('good_touch.png');">
+            <div class="text-overlay">जेव्हा आई-बाबा तुम्हाला मिठी मारतात, किंवा मित्र 'हाय-फाईव्ह' देतात, तेव्हा छान
+                वाटते. याला म्हणतात 'गुड टच' (Good Touch).</div>
+        </div>
+
+        <div class="slide" id="slide3" style="background-image: url('bad_touch.png');">
+            <div class="text-overlay">पण जर कुणी तुम्हाला असा स्पर्श केला ज्यामुळे तुम्हाला भीती वाटते किंवा
+                अस्वस्थल्यासारखे वाटते, तर तो 'बॅड टच' (Bad Touch) असतो! लगेच जोरात "नाही!" म्हणा!</div>
+        </div>
+
+        <div class="slide" id="slide4" style="background-image: url('safe_parents.png');">
+            <div class="text-overlay">अशा वेळी, लगेच पळून जा आणि आपल्या आई-बाबांना किंवा शिक्षकांना सांगा. तुमचे
+                पालकांना 'रक्षक ॲप' च्या मदतीने तुमची खूप काळजी असते!</div>
+        </div>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const playBtn = document.getElementById('playBtn');
+
+        const narration = [
+            "रक्षक ॲपमध्ये तुमचे स्वागत आहे! आज आपण एक अतिशय महत्त्वाची गोष्ट शिकणार आहोत... गुड टच... आणि... बॅड टच.",
+            "जेव्हा आई-बाबा तुम्हाला मिठी मारतात, किंवा मित्र हाय-फाईव्ह देतात, तेव्हा छान वाटते. याला म्हणतात, गुड टच.",
+            "पण... जर कुणी तुम्हाला असा स्पर्श केला ज्यामुळे तुम्हाला भीती वाटते किंवा अस्वस्थ वाटते... तर तो बॅड टच असतो! लगेच जोरात... नाही... म्हणा!",
+            "अशा वेळी, लगेच पळून जा आणि आपल्या आई-बाबांना किंवा शिक्षकांना सांगा. तुमचे आई-बाबा... रक्षक ॲप... च्या मदतीने तुमच्या सुरक्षिततेची काळजी घेत असतात!"
+        ];
+
+        let currentSlide = 0;
+
+        playBtn.addEventListener('click', () => {
+            playBtn.classList.add('hidden');
+            playSlide(0);
+        });
+
+        function playSlide(index) {
+            if (index >= slides.length) {
+                // End of video
+                playBtn.innerText = "🔄 Replay Video";
+                playBtn.classList.remove('hidden');
+                return;
+            }
+
+            slides.forEach(s => s.classList.remove('active'));
+            slides[index].classList.add('active');
+
+            // Text re-animation
+            const overlay = slides[index].querySelector('.text-overlay');
+            overlay.style.animation = 'none';
+            overlay.offsetHeight; // trigger reflow
+            overlay.style.animation = null;
+
+            // Speak
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // clear previous
+                const utterance = new SpeechSynthesisUtterance(narration[index]);
+                utterance.lang = 'mr-IN'; // Marathi
+                utterance.rate = 0.9;
+                utterance.pitch = 1.1; // Make it sound slightly more educational/friendly
+                utterance.onend = () => {
+                    setTimeout(() => playSlide(index + 1), 600); // Wait 0.6s before next slide
+                };
+                window.speechSynthesis.speak(utterance);
+            } else {
+                // Fallback if no TTS
+                setTimeout(() => playSlide(index + 1), 6000);
+            }
+        }
+    </script>
+</body>
+
+</html>

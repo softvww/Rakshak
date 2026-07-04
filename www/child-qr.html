@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rakshak — मुलाचा QR Scanner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- jsQR for decoding QR from camera -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #040810;
+            --surface: #0d1117;
+            --card: #111827;
+            --border: rgba(255, 255, 255, 0.07);
+            --primary: #ff3b30;
+            --accent: #00d4ff;
+            --green: #00e676;
+            --text: #f0f4ff;
+            --text-muted: #8892a4;
+            --yellow: #ffcc00;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Ambient orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .orb-1 {
+            background: #7b2fff;
+            width: 300px;
+            height: 300px;
+            top: -80px;
+            right: -80px;
+        }
+
+        .orb-2 {
+            background: var(--green);
+            width: 250px;
+            height: 250px;
+            bottom: 100px;
+            left: -80px;
+        }
+
+        /* Header */
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 14px 18px;
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand-logo {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ff3b30, #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge-child {
+            background: linear-gradient(135deg, #00c853, var(--green));
+            color: #001a06;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            position: relative;
+            z-index: 5;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        /* Status pill */
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 16px;
+        }
+
+        .sdot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .sdot.idle {
+            background: var(--text-muted);
+        }
+
+        .sdot.scanning {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        .sdot.connecting {
+            background: var(--yellow);
+            box-shadow: 0 0 8px var(--yellow);
+            animation: pulse 1s infinite;
+        }
+
+        .sdot.live {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        .sdot.error {
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        #statusMsg {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Phases */
+        .phase {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .phase.active {
+            display: flex;
+        }
+
+        /* Scanner */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        /* QR Scanner viewport */
+        .scanner-box {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 1;
+        }
+
+        #scanVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scan-frame {
+            width: 65%;
+            height: 65%;
+            border: 2px solid var(--accent);
+            border-radius: 16px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 4px;
+            right: 4px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: scan-move 2s ease-in-out infinite;
+        }
+
+        @keyframes scan-move {
+            0% {
+                top: 4px;
+            }
+
+            50% {
+                top: calc(100% - 6px);
+            }
+
+            100% {
+                top: 4px;
+            }
+        }
+
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: var(--accent);
+            border-style: solid;
+            border-width: 0;
+        }
+
+        .corner.tl {
+            top: -2px;
+            left: -2px;
+            border-top-width: 3px;
+            border-left-width: 3px;
+            border-radius: 6px 0 0 0;
+        }
+
+        .corner.tr {
+            top: -2px;
+            right: -2px;
+            border-top-width: 3px;
+            border-right-width: 3px;
+            border-radius: 0 6px 0 0;
+        }
+
+        .corner.bl {
+            bottom: -2px;
+            left: -2px;
+            border-bottom-width: 3px;
+            border-left-width: 3px;
+            border-radius: 0 0 0 6px;
+        }
+
+        .corner.br {
+            bottom: -2px;
+            right: -2px;
+            border-bottom-width: 3px;
+            border-right-width: 3px;
+            border-radius: 0 0 6px 0;
+        }
+
+        .scan-hint {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 11px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        /* Primary button */
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-blue {
+            background: linear-gradient(135deg, #7b2fff, var(--accent));
+            color: white;
+        }
+
+        .btn-green {
+            background: linear-gradient(135deg, #00c853, var(--green));
+            color: #001a06;
+        }
+
+        .btn-red {
+            background: linear-gradient(135deg, var(--primary), #ff6b35);
+            color: white;
+        }
+
+        .btn-gray {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        /* Live phase */
+        .live-header {
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.15), rgba(0, 212, 255, 0.1));
+            border: 1px solid rgba(0, 230, 118, 0.3);
+            border-radius: 16px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .live-badge {
+            background: var(--green);
+            color: #001a06;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        .live-timer {
+            font-size: 18px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stream-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .info-tile {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .info-tile .val {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--green);
+        }
+
+        .info-tile .lbl {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Manual QR input */
+        .manual-section {
+            margin-top: 8px;
+        }
+
+        .or-divider {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            margin: 8px 0;
+        }
+
+        .manual-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 13px 14px;
+            font-size: 14px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 1px;
+        }
+
+        .manual-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .manual-input::placeholder {
+            color: var(--text-muted);
+            letter-spacing: 0;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1a2030;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 12px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            z-index: 999;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Permission warning */
+        .perm-warn {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.25);
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 12px;
+            color: #ff8a80;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <header>
+        <div class="brand-logo">RAKSHAK</div>
+        <span class="badge-child">👧 मुलांचे App</span>
+    </header>
+
+    <div class="content">
+
+        <!-- Status pill -->
+        <div class="status-pill">
+            <div class="sdot idle" id="sDot"></div>
+            <span id="statusMsg">QR Scan करण्यासाठी तयार व्हा...</span>
+        </div>
+
+        <!-- PHASE 1: Scanner -->
+        <div class="phase active" id="phase-scan">
+            <div class="card">
+                <div class="card-title">📷 आई-बाबांचा QR Code Scan करा</div>
+                <div class="card-desc">आई किंवा बाबांच्या फोन/Computer वरचा QR Code खालील box मध्ये दाखवा.</div>
+
+                <div class="scanner-box">
+                    <video id="scanVideo" autoplay playsinline muted></video>
+                    <div class="scan-overlay">
+                        <div class="scan-frame">
+                            <div class="scan-line"></div>
+                            <div class="corner tl"></div>
+                            <div class="corner tr"></div>
+                            <div class="corner bl"></div>
+                            <div class="corner br"></div>
+                        </div>
+                    </div>
+                    <div class="scan-hint">📷 QR Code frame मध्ये ठेवा</div>
+                </div>
+
+                <div id="permWarn" class="perm-warn" style="display:none; margin-top:10px;">
+                    ⚠️ Camera permission द्यावे लागेल. Browser ने permission मागितल्यास "Allow" दाबा.
+                </div>
+
+                <button class="btn btn-blue" id="startScanBtn" onclick="startScanner()" style="margin-top:10px;">
+                    📷 Camera सुरू करा आणि Scan करा
+                </button>
+
+                <!-- Manual entry fallback -->
+                <div class="manual-section">
+                    <div class="or-divider">— किंवा Session ID manually टाका —</div>
+                    <input class="manual-input" id="manualId" placeholder="RSK-XXXXXXXX" maxlength="12">
+                    <button class="btn btn-gray" onclick="connectManual()" style="margin-top:8px;">
+                        🔗 Manual Connect
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PHASE 2: Connecting -->
+        <div class="phase" id="phase-connecting">
+            <div class="card" style="text-align:center;">
+                <div style="font-size:48px; margin-bottom:16px;">🔗</div>
+                <div class="card-title" style="justify-content:center; font-size:16px;">आई-बाबांशी Connect होत आहे...
+                </div>
+                <div class="card-desc" style="text-align:center; margin-top:8px;">कृपया थोडा वेळ थांबा. Camera आणि Mic
+                    permission द्या.</div>
+            </div>
+        </div>
+
+        <!-- PHASE 3: Live streaming -->
+        <div class="phase" id="phase-live">
+
+            <div class="live-header">
+                <div>
+                    <div class="live-badge">🟢 LIVE</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" id="parentLabel">आई-बाबा पाहत
+                        आहेत</div>
+                </div>
+                <div class="live-timer" id="liveTimer">00:00:00</div>
+            </div>
+
+            <div class="stream-info">
+                <div class="info-tile">
+                    <div class="val" id="camStatus">📹</div>
+                    <div class="lbl">Video</div>
+                </div>
+                <div class="info-tile">
+                    <div class="val" id="micStatus">🎤</div>
+                    <div class="lbl">Audio</div>
+                </div>
+                <div class="info-tile">
+                    <div class="val" id="locStatus">📍</div>
+                    <div class="lbl">Location</div>
+                </div>
+                <div class="info-tile">
+                    <div class="val" id="dataStatus">📡</div>
+                    <div class="lbl">Connected</div>
+                </div>
+            </div>
+
+            <div class="card" style="font-size:12px; color:var(--text-muted); line-height:1.7;">
+                ℹ️ तुमचा Camera, Mic आणि Location आई-बाबांना Live दिसत आहे.<br>
+                हे App बंद केल्यावर streaming बंद होईल.
+            </div>
+
+            <button class="btn btn-red" onclick="stopStreaming()">
+                ❌ Streaming बंद करा
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">msg</div>
+
+    <script>
+        // ─── Globals ──────────────────────────────────────────────────
+        let peer = null;
+        let parentPeerId = null;
+        let dataConn = null;
+        let mediaConn = null;
+        let localStream = null;
+        let scanVideoEl = null;
+        let scanCanvas = null;
+        let scanCtx = null;
+        let scanInterval = null;
+        let liveStartTime = null;
+        let timerInterval = null;
+        let locationInterval = null;
+
+        // ─── On load: check URL params ────────────────────────────────
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get('pid');
+            if (pid) {
+                // Auto-connect if launched from QR scan
+                setStatus('connecting', 'QR Scan यशस्वी! Connect होत आहे...');
+                parentPeerId = pid;
+                showPhase('phase-connecting');
+                initChildPeer(pid);
+            }
+        });
+
+        // ─── QR Scanner ───────────────────────────────────────────────
+        async function startScanner() {
+            try {
+                setStatus('scanning', '📷 Camera सुरू केला. QR दाखवा...');
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' },
+                    audio: false
+                });
+
+                scanVideoEl = document.getElementById('scanVideo');
+                scanVideoEl.srcObject = stream;
+
+                scanCanvas = document.createElement('canvas');
+                scanCtx = scanCanvas.getContext('2d');
+
+                scanVideoEl.addEventListener('loadedmetadata', () => {
+                    scanCanvas.width = scanVideoEl.videoWidth;
+                    scanCanvas.height = scanVideoEl.videoHeight;
+                    startQRScanning(stream);
+                });
+
+            } catch (e) {
+                document.getElementById('permWarn').style.display = 'block';
+                setStatus('error', '⚠️ Camera permission नाकारले. Manually ID टाका.');
+                showToast('⚠️ Camera permission द्या.');
+            }
+        }
+
+        function startQRScanning(stream) {
+            scanInterval = setInterval(() => {
+                if (!scanVideoEl || scanVideoEl.readyState !== 4) return;
+
+                try {
+                    scanCanvas.width = scanVideoEl.videoWidth;
+                    scanCanvas.height = scanVideoEl.videoHeight;
+                    scanCtx.drawImage(scanVideoEl, 0, 0, scanCanvas.width, scanCanvas.height);
+                    const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+                    const code = jsQR(imgData.data, imgData.width, imgData.height, {
+                        inversionAttempts: 'dontInvert'
+                    });
+
+                    if (code) {
+                        clearInterval(scanInterval);
+                        // Stop scan camera
+                        stream.getTracks().forEach(t => t.stop());
+                        scanVideoEl.srcObject = null;
+
+                        const url = code.data;
+                        // Extract pid from URL
+                        let pid = url;
+                        try {
+                            const u = new URL(url);
+                            pid = u.searchParams.get('pid') || url;
+                        } catch (e2) { }
+
+                        showToast('✅ QR Scan यशस्वी!');
+                        parentPeerId = pid;
+                        showPhase('phase-connecting');
+                        setStatus('connecting', 'Connect होत आहे...');
+                        initChildPeer(pid);
+                    }
+                } catch (err) { }
+            }, 500);
+        }
+
+        // ─── Manual connect ───────────────────────────────────────────
+        function connectManual() {
+            const id = document.getElementById('manualId').value.trim().toUpperCase();
+            if (!id || id.length < 5) {
+                showToast('⚠️ कृपया valid Session ID टाका.');
+                return;
+            }
+            parentPeerId = id;
+            showPhase('phase-connecting');
+            setStatus('connecting', 'Connect होत आहे...');
+            initChildPeer(id);
+        }
+
+        // ─── PeerJS child init ─────────────────────────────────────────
+        function initChildPeer(targetPeerId) {
+            peer = new Peer({
+                debug: 0,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', (myId) => {
+                // Open data connection first
+                dataConn = peer.connect(targetPeerId);
+                dataConn.on('open', () => {
+                    // Now call with camera + mic
+                    startCameraAndCall(targetPeerId);
+                });
+                dataConn.on('error', (e) => {
+                    setStatus('error', '⚠️ Data connection error');
+                });
+            });
+
+            peer.on('error', (err) => {
+                setStatus('error', '⚠️ Connect नाही झाले: ' + err.type);
+                showToast('⚠️ Connection failed. ID तपासा.');
+                showPhase('phase-scan');
+            });
+        }
+
+        // ─── Camera + Mic + Call ──────────────────────────────────────
+        async function startCameraAndCall(targetPeerId) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: true
+                });
+
+                // Call the parent peer
+                mediaConn = peer.call(targetPeerId, localStream);
+                mediaConn.on('stream', () => {
+                    // no-op: parent doesn't send back stream
+                });
+                mediaConn.on('close', () => {
+                    stopStreaming();
+                });
+                mediaConn.on('error', (e) => {
+                    setStatus('error', '⚠️ Video call error: ' + e);
+                });
+
+                // Show live phase
+                showPhase('phase-live');
+                setStatus('live', '🟢 Live Streaming सुरू आहे!');
+
+                liveStartTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+
+                // Send location updates every 15s
+                sendLocation();
+                locationInterval = setInterval(sendLocation, 15000);
+
+                showToast('📹 Streaming सुरू झाले! आई-बाबा पाहत आहेत.');
+
+            } catch (e) {
+                setStatus('error', '⚠️ Camera/Mic permission नाकारले. Please allow.');
+                showToast('⚠️ Camera आणि Mic permission द्या.');
+                showPhase('phase-scan');
+                console.error(e);
+            }
+        }
+
+        // ─── Location Sharing ─────────────────────────────────────────
+        function sendLocation() {
+            if (!dataConn || !dataConn.open) return;
+            navigator.geolocation.getCurrentPosition(pos => {
+                dataConn.send({
+                    type: 'location',
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy
+                });
+                document.getElementById('locStatus').textContent = '✅';
+            }, () => {
+                document.getElementById('locStatus').textContent = '❌';
+            }, { enableHighAccuracy: true, timeout: 8000 });
+        }
+
+        // ─── Stop streaming ───────────────────────────────────────────
+        function stopStreaming() {
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+            if (mediaConn) { mediaConn.close(); mediaConn = null; }
+            if (dataConn) { dataConn.close(); dataConn = null; }
+            if (peer) { peer.destroy(); peer = null; }
+            if (timerInterval) clearInterval(timerInterval);
+            if (locationInterval) clearInterval(locationInterval);
+
+            showPhase('phase-scan');
+            setStatus('idle', 'Streaming बंद केली. पुन्हा Scan करा.');
+            showToast('🔌 Streaming बंद केली.');
+        }
+
+        // ─── UI helpers ───────────────────────────────────────────────
+        function showPhase(id) {
+            document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function setStatus(type, msg) {
+            const dot = document.getElementById('sDot');
+            dot.className = 'sdot ' + type;
+            document.getElementById('statusMsg').textContent = msg;
+        }
+
+        function updateTimer() {
+            if (!liveStartTime) return;
+            const secs = Math.floor((Date.now() - liveStartTime) / 1000);
+            const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+            const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+            const s = String(secs % 60).padStart(2, '0');
+            const el = document.getElementById('liveTimer');
+            if (el) el.textContent = `${h}:${m}:${s}`;
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rakshak — मुलाचा QR Scanner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- jsQR for decoding QR from camera -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #040810;
+            --surface: #0d1117;
+            --card: #111827;
+            --border: rgba(255, 255, 255, 0.07);
+            --primary: #ff3b30;
+            --accent: #00d4ff;
+            --green: #00e676;
+            --text: #f0f4ff;
+            --text-muted: #8892a4;
+            --yellow: #ffcc00;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Ambient orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .orb-1 {
+            background: #7b2fff;
+            width: 300px;
+            height: 300px;
+            top: -80px;
+            right: -80px;
+        }
+
+        .orb-2 {
+            background: var(--green);
+            width: 250px;
+            height: 250px;
+            bottom: 100px;
+            left: -80px;
+        }
+
+        /* Header */
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 14px 18px;
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand-logo {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ff3b30, #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge-child {
+            background: linear-gradient(135deg, #00c853, var(--green));
+            color: #001a06;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            position: relative;
+            z-index: 5;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        /* Status pill */
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 16px;
+        }
+
+        .sdot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .sdot.idle {
+            background: var(--text-muted);
+        }
+
+        .sdot.scanning {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        .sdot.connecting {
+            background: var(--yellow);
+            box-shadow: 0 0 8px var(--yellow);
+            animation: pulse 1s infinite;
+        }
+
+        .sdot.live {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        .sdot.error {
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        #statusMsg {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Phases */
+        .phase {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .phase.active {
+            display: flex;
+        }
+
+        /* Scanner */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        /* QR Scanner viewport */
+        .scanner-box {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 1;
+        }
+
+        #scanVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scan-frame {
+            width: 65%;
+            height: 65%;
+            border: 2px solid var(--accent);
+            border-radius: 16px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 4px;
+            right: 4px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: scan-move 2s ease-in-out infinite;
+        }
+
+        @keyframes scan-move {
+            0% {
+                top: 4px;
+            }
+
+            50% {
+                top: calc(100% - 6px);
+            }
+
+            100% {
+                top: 4px;
+            }
+        }
+
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: var(--accent);
+            border-style: solid;
+            border-width: 0;
+        }
+
+        .corner.tl {
+            top: -2px;
+            left: -2px;
+            border-top-width: 3px;
+            border-left-width: 3px;
+            border-radius: 6px 0 0 0;
+        }
+
+        .corner.tr {
+            top: -2px;
+            right: -2px;
+            border-top-width: 3px;
+            border-right-width: 3px;
+            border-radius: 0 6px 0 0;
+        }
+
+        .corner.bl {
+            bottom: -2px;
+            left: -2px;
+            border-bottom-width: 3px;
+            border-left-width: 3px;
+            border-radius: 0 0 0 6px;
+        }
+
+        .corner.br {
+            bottom: -2px;
+            right: -2px;
+            border-bottom-width: 3px;
+            border-right-width: 3px;
+            border-radius: 0 0 6px 0;
+        }
+
+        .scan-hint {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 11px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        /* Primary button */
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-blue {
+            background: linear-gradient(135deg, #7b2fff, var(--accent));
+            color: white;
+        }
+
+        .btn-green {
+            background: linear-gradient(135deg, #00c853, var(--green));
+            color: #001a06;
+        }
+
+        .btn-red {
+            background: linear-gradient(135deg, var(--primary), #ff6b35);
+            color: white;
+        }
+
+        .btn-gray {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        /* Live phase */
+        .live-header {
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.15), rgba(0, 212, 255, 0.1));
+            border: 1px solid rgba(0, 230, 118, 0.3);
+            border-radius: 16px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .live-badge {
+            background: var(--green);
+            color: #001a06;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        .live-timer {
+            font-size: 18px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stream-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .info-tile {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .info-tile .val {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--green);
+        }
+
+        .info-tile .lbl {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Manual QR input */
+        .manual-section {
+            margin-top: 8px;
+        }
+
+        .or-divider {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            margin: 8px 0;
+        }
+
+        .manual-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 13px 14px;
+            font-size: 14px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 1px;
+        }
+
+        .manual-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .manual-input::placeholder {
+            color: var(--text-muted);
+            letter-spacing: 0;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1a2030;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 12px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            z-index: 999;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Permission warning */
+        .perm-warn {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.25);
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 12px;
+            color: #ff8a80;
+            line-height: 1.6;
+        }
+
+        /* Simulated app locker and overlays */
+        .simulated-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-top: 10px;
+            margin-bottom: 6px;
+        }
+
+        .simulated-apps-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .simulated-app-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .simulated-app-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent);
+        }
+
+        .simulated-app-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .simulated-app-name {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .simulated-app-status {
+            font-size: 9px;
+            color: var(--green);
+            margin-top: 2px;
+            font-weight: bold;
+        }
+
+        .simulated-app-status.blocked {
+            color: var(--primary);
+        }
+
+        .blocked-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(13, 17, 23, 0.98);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .blocked-box {
+            background: var(--card);
+            border: 2px solid var(--primary);
+            border-radius: 28px;
+            padding: 30px 24px;
+            max-width: 340px;
+            box-shadow: 0 10px 30px rgba(255, 59, 48, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20%,
+            60% {
+                transform: translateX(-6px);
+            }
+
+            40%,
+            80% {
+                transform: translateX(6px);
+            }
+        }
+
+        .blocked-icon {
+            font-size: 56px;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        .blocked-title {
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .blocked-desc {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text);
+        }
+
+        .blocked-btn {
+            background: linear-gradient(135deg, #ff3b30, #ff6b35);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            width: 100%;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <header>
+        <div class="brand-logo">RAKSHAK</div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="langToggleBtn" onclick="toggleLanguage()"
+                style="background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 10px; font-size: 11px; cursor: pointer; font-weight: 600;">
+                🌐 <span id="langBtnText">English</span>
+            </button>
+            <span class="badge-child" id="childBadge">👧 मुलांचे App</span>
+        </div>
+    </header>
+
+    <div class="content">
+
+        <!-- Status pill -->
+        <div class="status-pill">
+            <div class="sdot idle" id="sDot"></div>
+            <span id="statusMsg">QR Scan करण्यासाठी तयार व्हा...</span>
+        </div>
+
+        <!-- PHASE 1: Scanner -->
+        <div class="phase active" id="phase-scan">
+            <div class="card">
+                <div class="card-title">📷 आई-बाबांचा QR Code Scan करा</div>
+                <div class="card-desc">आई किंवा बाबांच्या फोन/Computer वरचा QR Code खालील box मध्ये दाखवा.</div>
+
+                <div class="scanner-box">
+                    <video id="scanVideo" autoplay playsinline muted></video>
+                    <div class="scan-overlay">
+                        <div class="scan-frame">
+                            <div class="scan-line"></div>
+                            <div class="corner tl"></div>
+                            <div class="corner tr"></div>
+                            <div class="corner bl"></div>
+                            <div class="corner br"></div>
+                        </div>
+                    </div>
+                    <div class="scan-hint">📷 QR Code frame मध्ये ठेवा</div>
+                </div>
+
+                <div id="setupPermissionsBox" class="perm-warn"
+                    style="display:none; margin-top:10px; background: rgba(255,204,0,0.1); border-color: rgba(255,204,0,0.3); color: var(--yellow);">
+                    <div style="font-weight:700; margin-bottom:6px;">⚠️ Setup Required (पालकांची परवानगी)</div>
+                    <div style="font-size:11px; margin-bottom:8px; line-height:1.4;">To allow parental monitoring,
+                        please grant the following permissions on this device:</div>
+
+                    <button class="btn btn-gray" id="btnReqUsage" onclick="requestUsagePerm()"
+                        style="font-size:11px; padding:10px; margin-bottom:6px;">
+                        🔑 1. Allow Usage Access
+                    </button>
+                    <button class="btn btn-gray" id="btnReqNotif" onclick="requestNotifPerm()"
+                        style="font-size:11px; padding:10px;">
+                        🔔 2. Allow Notification Access
+                    </button>
+                </div>
+
+                <div id="permWarn" class="perm-warn" style="display:none; margin-top:10px;">
+                    ⚠️ Camera permission द्यावे लागेल. Browser ने permission मागितल्यास "Allow" दाबा.
+                </div>
+
+                <button class="btn btn-blue" id="startScanBtn" onclick="startScanner()" style="margin-top:10px;">
+                    📷 Camera सुरू करा आणि Scan करा
+                </button>
+
+                <!-- Manual entry fallback -->
+                <div class="manual-section">
+                    <div class="or-divider">— किंवा Session ID manually टाका —</div>
+                    <input class="manual-input" id="manualId" placeholder="RSK-XXXXXXXX" maxlength="12">
+                    <button class="btn btn-gray" onclick="connectManual()" style="margin-top:8px;">
+                        🔗 Manual Connect
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PHASE 2: Connecting -->
+        <div class="phase" id="phase-connecting">
+            <div class="card" style="text-align:center;">
+                <div style="font-size:48px; margin-bottom:16px;">🔗</div>
+                <div class="card-title" style="justify-content:center; font-size:16px;">आई-बाबांशी Connect होत आहे...
+                </div>
+                <div class="card-desc" style="text-align:center; margin-top:8px;">कृपया थोडा वेळ थांबा. Camera आणि Mic
+                    permission द्या.</div>
+            </div>
+        </div>
+
+        <!-- PHASE 3: Live streaming -->
+        <div class="phase" id="phase-live">
+
+            <div class="live-header">
+                <div>
+                    <div class="live-badge">🟢 LIVE</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" id="parentLabel">आई-बाबा पाहत
+                        आहेत</div>
+                </div>
+                <div class="live-timer" id="liveTimer">00:00:00</div>
+            </div>
+
+            <div class="stream-info">
+                <div class="info-tile">
+                    <div class="val" id="camStatus">📹</div>
+                    <div class="lbl" id="lblVideo">Video</div>
+                </div>
+                <div class="info-tile">
+                    <div class="val" id="micStatus">🎤</div>
+                    <div class="lbl" id="lblAudio">Audio</div>
+                </div>
+                <div class="info-tile">
+                    <div class="val" id="locStatus">📍</div>
+                    <div class="lbl" id="lblLocation">Location</div>
+                </div>
+                <div class="info-tile">
+                    <div class="val" id="dataStatus">📡</div>
+                    <div class="lbl" id="lblConnected">Connected</div>
+                </div>
+            </div>
+
+            <!-- Remote Siren HUD -->
+            <div id="remoteSirenBox"
+                style="display:none; background:rgba(255,59,48,0.2); border:2px border var(--primary); border-radius:16px; padding:20px; text-align:center; animation: pulse 1s infinite;">
+                <div style="font-size:40px; margin-bottom:10px;">🚨</div>
+                <div style="font-size:18px; font-weight:800; color:var(--primary);" id="remoteSirenTitle">REMOTE ALARM
+                    ACTIVE!</div>
+                <div style="font-size:12px; opacity:0.8; margin-top:5px;" id="remoteSirenDesc">Parent has triggered this
+                    alarm.</div>
+            </div>
+
+            <div class="card" id="streamingSecurityCard"
+                style="font-size:12px; color:var(--text-muted); line-height:1.7;">
+                <span id="streamingSecurityText">ℹ️ तुमचा Camera, Mic आणि Location आई-बाबांना Live दिसत आहे.<br>हे App
+                    बंद केल्यावर streaming बंद होईल.</span>
+            </div>
+
+            <!-- Simulated Apps Dashboard for Parental Controls Verification -->
+            <div class="card" style="margin-top: 8px; margin-bottom: 8px;">
+                <div class="simulated-title" id="lblSimTitle">🛠️ Test Parental Controls Simulator</div>
+                <div class="card-desc" id="lblSimDesc" style="margin-bottom: 10px;">Simulate opening apps and installing
+                    packages to verify blocking/approvals in real-time.</div>
+
+                <div class="simulated-apps-grid" id="simulatedAppsContainer">
+                    <!-- Loaded dynamically -->
+                </div>
+
+                <button class="btn btn-gray" onclick="triggerInstallRequest()" id="btnInstallRequest">
+                    📥 <span id="lblInstallNew">Install New App</span>
+                </button>
+            </div>
+
+            <button class="btn btn-red" id="btnStopStreaming" onclick="stopStreaming()">
+                ❌ <span id="btnStopStreamingText">Streaming बंद करा</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">msg</div>
+
+    <!-- Parental Blocker Overlay Dialog -->
+    <div class="blocked-overlay" id="blockedOverlay">
+        <div class="blocked-box">
+            <div class="blocked-icon">🛑</div>
+            <div class="blocked-title" id="blockedTitle">App Blocked by Parent</div>
+            <div class="blocked-desc" id="blockedDesc">Your parents have restricted access to this app. Please ask for
+                permission to unlock.</div>
+            <button class="blocked-btn" id="btnBlockedClose" onclick="closeBlockScreen()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // ─── Translations ─────────────────────────────────────────────
+        let currentLang = 'en'; // Default to English for cleaner start
+        const translations = {
+            'childBadge': { en: '👧 Kids App', mr: '👧 मुलांचे App' },
+            'langBtnText': { en: 'मराठी', mr: 'English' },
+            'statusMsg': {
+                idle: { en: 'Ready to scan QR...', mr: 'QR Scan करण्यासाठी तयार व्हा...' },
+                scanning: { en: 'Camera active. Scan QR...', mr: '📷 Camera सुरू केला. QR दाखवा...' },
+                connecting: { en: 'Connecting to parent...', mr: 'Connect होत आहे...' },
+                live: { en: '🟢 Live Streaming Active!', mr: '🟢 Live Streaming सुरू आहे!' },
+                error: { en: '⚠️ Connection failed', mr: '⚠️ Connect नाही झाले' }
+            },
+            'scannerTitle': { en: '📷 Scan Parent QR Code', mr: '📷 आई-बाबांचा QR Code Scan करा' },
+            'scannerDesc': { en: 'Show the QR code from your parent\'s phone in the box below.', mr: 'आई किंवा बाबांच्या फोनवरचा QR Code खालील box मध्ये दाखवा.' },
+            'scanHint': { en: '📷 Keep QR inside frame', mr: '📷 QR Code frame मध्ये ठेवा' },
+            'btnStartScan': { en: '📷 Start Camera & Scan', mr: '📷 Camera सुरू करा आणि Scan करा' },
+            'manualDivider': { en: '— OR Enter Session ID manually —', mr: '— किंवा Session ID manually टाका —' },
+            'btnManualConnect': { en: '🔗 Manual Connect', mr: '🔗 Manual Connect' },
+            'connectingTitle': { en: 'Connecting to Parent...', mr: 'आई-बाबांशी Connect होत आहे...' },
+            'connectingDesc': { en: 'Please wait. Grant Camera & Mic permissions if asked.', mr: 'कृपया थोडा वेळ थांबा. Camera आणि Mic permission द्या.' },
+            'parentLabel': { en: 'Parents are watching', mr: 'आई-बाबा पाहत आहेत' },
+            'lblVideo': { en: 'Video', mr: 'व्हिडिओ' },
+            'lblAudio': { en: 'Audio', mr: 'आवाज' },
+            'lblLocation': { en: 'Location', mr: 'लोकेशन' },
+            'lblConnected': { en: 'Connected', mr: 'कनेक्टेड' },
+            'remoteSirenTitle': { en: 'REMOTE ALARM ACTIVE!', mr: 'रिमोट अलार्म सक्रिय!' },
+            'remoteSirenDesc': { en: 'Parent has triggered this alarm.', mr: 'आई-बाबांनी हा अलार्म वाजवला आहे.' },
+            'streamingSecurityText': { en: 'ℹ️ Your Camera, Mic and Location are shared live with parents.<br>Streaming stops when you close the app.', mr: 'ℹ️ तुमचा Camera, Mic आणि Location आई-बाबांना Live दिसत आहे.<br>हे App बंद केल्यावर streaming बंद होईल.' },
+            'btnStopStreamingText': { en: 'Stop Streaming', mr: 'Streaming बंद करा' },
+            'lblSimTitle': { en: '🛠️ Parental Controls Simulator Desktop', mr: '🛠️ पॅरेंटल कंट्रोल सिम्युलेटर' },
+            'lblSimDesc': { en: 'Simulate opening apps and installing packages to verify blocking/approvals in real-time.', mr: 'ब्लॉकिंग आणि परवानग्या तपासण्यासाठी खालील ॲप्स उघडा किंवा नवीन ॲप्स इंस्टॉल करा.' },
+            'lblInstallNew': { en: '📥 Install New App', mr: '📥 नवीन ॲप इन्स्टॉल करा' },
+            'lblBlockTitle': { en: 'App Blocked', mr: 'ॲप्लिकेशन ब्लॉक केले आहे' },
+            'lblBlockDesc': { en: 'Your parents have restricted access to this app. Access denied.', mr: 'तुमच्या पालकांनी या ॲपचा वापर मर्यादित केला आहे. वापरण्यास बंदी.' },
+            'btnStopStreamingText': { en: 'Stop Streaming', mr: 'Streaming बंद करा' }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'mr' : 'en';
+            localStorage.setItem('rakshak_lang', currentLang);
+            applyLanguage();
+        }
+
+        function applyLanguage() {
+            document.getElementById('langBtnText').textContent = translations.langBtnText[currentLang];
+            document.getElementById('childBadge').textContent = translations.childBadge[currentLang];
+
+            // Phase 1 (Scanner)
+            const phase1 = document.getElementById('phase-scan');
+            if (phase1) {
+                phase1.querySelector('.card-title').textContent = translations.scannerTitle[currentLang];
+                phase1.querySelector('.card-desc').textContent = translations.scannerDesc[currentLang];
+                phase1.querySelector('.scan-hint').textContent = translations.scanHint[currentLang];
+                document.getElementById('startScanBtn').innerHTML = `📷 ${translations.btnStartScan[currentLang]}`;
+                phase1.querySelector('.or-divider').textContent = translations.manualDivider[currentLang];
+                phase1.querySelector('.btn-gray').textContent = translations.btnManualConnect[currentLang];
+            }
+
+            // Phase 2 (Connecting)
+            const phase2 = document.getElementById('phase-connecting');
+            if (phase2) {
+                phase2.querySelector('.card-title').textContent = translations.connectingTitle[currentLang];
+                phase2.querySelector('.card-desc').textContent = translations.connectingDesc[currentLang];
+            }
+
+            // Phase 3 (Live)
+            document.getElementById('parentLabel').textContent = translations.parentLabel[currentLang];
+            document.getElementById('lblVideo').textContent = translations.lblVideo[currentLang];
+            document.getElementById('lblAudio').textContent = translations.lblAudio[currentLang];
+            document.getElementById('lblLocation').textContent = translations.lblLocation[currentLang];
+            document.getElementById('lblConnected').textContent = translations.lblConnected[currentLang];
+            document.getElementById('remoteSirenTitle').textContent = translations.remoteSirenTitle[currentLang];
+            document.getElementById('remoteSirenDesc').textContent = translations.remoteSirenDesc[currentLang];
+            document.getElementById('streamingSecurityText').innerHTML = translations.streamingSecurityText[currentLang];
+            document.getElementById('btnStopStreamingText').textContent = translations.btnStopStreamingText[currentLang];
+
+            // Update status if possible
+            refreshStatusText();
+        }
+
+        function refreshStatusText() {
+            const dot = document.getElementById('sDot');
+            let state = 'idle';
+            if (dot.classList.contains('scanning')) state = 'scanning';
+            else if (dot.classList.contains('connecting')) state = 'connecting';
+            else if (dot.classList.contains('live')) state = 'live';
+            else if (dot.classList.contains('error')) state = 'error';
+
+            const msg = translations.statusMsg[state][currentLang];
+            document.getElementById('statusMsg').textContent = msg;
+        }
+
+        // ─── Globals ──────────────────────────────────────────────────
+        let peer = null;
+        let parentPeerId = null;
+        let dataConn = null;
+        let mediaConn = null;
+        let localStream = null;
+        let scanVideoEl = null;
+        let scanCanvas = null;
+        let scanCtx = null;
+        let scanInterval = null;
+        let liveStartTime = null;
+        let timerInterval = null;
+        let locationInterval = null;
+
+        // Remote Siren States
+        let audioCtx = null;
+        let sirenOsc1 = null;
+        let sirenOsc2 = null;
+        let sirenGain = null;
+        let isSirenPlaying = false;
+
+        // ─── On load: check URL params ────────────────────────────────
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get('pid');
+
+            // Set initial language
+            applyLanguage();
+
+            if (pid) {
+                // Auto-connect if launched from QR scan
+                setStatus('connecting', 'QR Scan यशस्वी! Connect होत आहे...');
+                parentPeerId = pid;
+                showPhase('phase-connecting');
+                initChildPeer(pid);
+            }
+        });
+
+        // ─── Special Permissions Setup ─────────────────────────────────
+        async function checkSpecialPermissions() {
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ParentalControl) {
+                const pc = window.Capacitor.Plugins.ParentalControl;
+                let u = await pc.checkUsagePermission();
+                let n = await pc.checkNotificationPermission();
+
+                let box = document.getElementById('setupPermissionsBox');
+                if (box) {
+                    if (!u.granted || !n.granted) {
+                        box.style.display = 'block';
+                        document.getElementById('btnReqUsage').style.opacity = u.granted ? "0.5" : "1";
+                        document.getElementById('btnReqNotif').style.opacity = n.granted ? "0.5" : "1";
+                        document.getElementById('btnReqUsage').innerHTML = u.granted ? "✅ 1. Usage Access Granted" : "🔑 1. Allow Usage Access (Required)";
+                        document.getElementById('btnReqNotif').innerHTML = n.granted ? "✅ 2. Notification Access Granted" : "🔔 2. Allow Notification Access (Required)";
+                    } else {
+                        box.style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        async function requestUsagePerm() {
+            if (window.Capacitor && window.Capacitor.Plugins.ParentalControl) {
+                await window.Capacitor.Plugins.ParentalControl.openUsagePermissionSettings();
+            }
+        }
+        async function requestNotifPerm() {
+            if (window.Capacitor && window.Capacitor.Plugins.ParentalControl) {
+                await window.Capacitor.Plugins.ParentalControl.openNotificationPermissionSettings();
+            }
+        }
+
+        // ─── QR Scanner ───────────────────────────────────────────────
+        async function startScanner() {
+            checkSpecialPermissions();
+            if (!window._permInterval) window._permInterval = setInterval(checkSpecialPermissions, 3000);
+            try {
+                setStatus('scanning', '📷 Camera सुरू केला. QR दाखवा...');
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' },
+                    audio: false
+                });
+
+                scanVideoEl = document.getElementById('scanVideo');
+                scanVideoEl.srcObject = stream;
+
+                scanCanvas = document.createElement('canvas');
+                scanCtx = scanCanvas.getContext('2d');
+
+                scanVideoEl.addEventListener('loadedmetadata', () => {
+                    scanCanvas.width = scanVideoEl.videoWidth;
+                    scanCanvas.height = scanVideoEl.videoHeight;
+                    startQRScanning(stream);
+                });
+
+            } catch (e) {
+                document.getElementById('permWarn').style.display = 'block';
+                setStatus('error', '⚠️ Camera permission नाकारले. Manually ID टाका.');
+                showToast('⚠️ Camera permission द्या.');
+            }
+        }
+
+        function startQRScanning(stream) {
+            scanInterval = setInterval(() => {
+                if (!scanVideoEl || scanVideoEl.readyState !== 4) return;
+
+                try {
+                    scanCanvas.width = scanVideoEl.videoWidth;
+                    scanCanvas.height = scanVideoEl.videoHeight;
+                    scanCtx.drawImage(scanVideoEl, 0, 0, scanCanvas.width, scanCanvas.height);
+                    const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+                    const code = jsQR(imgData.data, imgData.width, imgData.height, {
+                        inversionAttempts: 'dontInvert'
+                    });
+
+                    if (code) {
+                        clearInterval(scanInterval);
+                        // Stop scan camera
+                        stream.getTracks().forEach(t => t.stop());
+                        scanVideoEl.srcObject = null;
+
+                        const url = code.data;
+                        // Extract pid from URL
+                        let pid = url;
+                        try {
+                            const u = new URL(url);
+                            pid = u.searchParams.get('pid') || url;
+                        } catch (e2) { }
+
+                        showToast('✅ QR Scan यशस्वी!');
+                        parentPeerId = pid;
+                        showPhase('phase-connecting');
+                        setStatus('connecting', 'Connect होत आहे...');
+                        initChildPeer(pid);
+                    }
+                } catch (err) { }
+            }, 500);
+        }
+
+        // ─── Manual connect ───────────────────────────────────────────
+        function connectManual() {
+            const id = document.getElementById('manualId').value.trim().toUpperCase();
+            if (!id || id.length < 5) {
+                showToast('⚠️ कृपया valid Session ID टाका.');
+                return;
+            }
+            parentPeerId = id;
+            showPhase('phase-connecting');
+            setStatus('connecting', 'Connect होत आहे...');
+            initChildPeer(id);
+        }
+
+        // ─── PeerJS child init ─────────────────────────────────────────
+        function initChildPeer(targetPeerId) {
+            peer = new Peer({
+                debug: 0,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', (myId) => {
+                // Open data connection
+                dataConn = peer.connect(targetPeerId);
+                setupDataConnectionListeners();
+            });
+
+            peer.on('connection', (conn) => {
+                dataConn = conn;
+                setupDataConnectionListeners();
+            });
+
+            peer.on('error', (err) => {
+                setStatus('error', '⚠️ Connect नाही झाले: ' + err.type);
+                showToast('⚠️ Connection failed. ID तपासा.');
+                showPhase('phase-scan');
+            });
+        }
+
+        function setupDataConnectionListeners() {
+            if (!dataConn) return;
+            dataConn.on('open', () => {
+                if (!localStream) startCameraAndCall(parentPeerId);
+                startParentalControlsSync();
+            });
+            dataConn.on('data', (data) => {
+                handleIncomingData(data);
+            });
+            dataConn.on('close', () => {
+                setStatus('error', '⚠️ Parent disconnected');
+                stopStreaming();
+                stopParentalControlsSync();
+            });
+        }
+
+        let blockedConfigList = []; // Package names blocked by parent
+        let simulatedUsageList = {
+            "com.google.android.youtube": 15,
+            "com.whatsapp": 42,
+            "com.facebook.katana": 8,
+            "com.instagram.android": 22
+        };
+        let simulatedNotificationsList = [
+            { packageName: "com.whatsapp", title: "Manoj (WhatsApp)", text: "Hurry up, class starts at 9!", timestamp: Date.now() - 300000 },
+            { packageName: "com.android.apps.messaging", title: "Dad (SMS)", text: "Call me when you reach school.", timestamp: Date.now() - 600000 }
+        ];
+        let simulatedAppsList = [
+            { packageName: "com.google.android.youtube", appName: "YouTube", isSystem: false },
+            { packageName: "com.whatsapp", appName: "WhatsApp", isSystem: false },
+            { packageName: "com.facebook.katana", appName: "Facebook", isSystem: false },
+            { packageName: "com.instagram.android", appName: "Instagram", isSystem: false }
+        ];
+        let simulatedInstallRequests = []; // Requests pending parent decision
+        let updateIntervalId = null;
+
+        function handleIncomingData(data) {
+            if (data.type === 'siren:start') {
+                startRemoteSiren();
+            } else if (data.type === 'siren:stop') {
+                stopRemoteSiren();
+            } else if (data.type === 'block-settings') {
+                // Update blocked apps config
+                blockedConfigList = data.blockedApps || [];
+                renderSimulatedApps();
+
+                // If currently open simulated app is inside blockedConfigList, enforce block screen
+                if (currentlyOpenApp && blockedConfigList.includes(currentlyOpenApp)) {
+                    showBlockScreen(currentlyOpenApp);
+                }
+            } else if (data.type === 'install-decision') {
+                const pkg = data.packageName;
+                const approved = data.approved;
+
+                // Remove from pending install requests
+                simulatedInstallRequests = simulatedInstallRequests.filter(r => r.packageName !== pkg);
+
+                if (approved) {
+                    showToast(currentLang === 'en' ? `App ${pkg} install approved!` : `ॲप (${pkg}) इन्स्टॉल मंजूर झाले!`);
+
+                    // Add app to list if not already there
+                    if (!simulatedAppsList.some(a => a.packageName === pkg)) {
+                        let name = pkg.split('.').pop();
+                        name = name.charAt(0).toUpperCase() + name.slice(1);
+                        simulatedAppsList.push({ packageName: pkg, appName: name, isSystem: false });
+                    }
+                } else {
+                    showToast(currentLang === 'en' ? `App ${pkg} install blocked/rejected!` : `ॲप (${pkg}) इन्स्टॉल नकारले!`);
+                }
+                renderSimulatedApps();
+            } else if (data.type === 'block-timer') {
+                const pkg = data.packageName;
+                const minutes = data.minutes;
+                showToast(currentLang === 'en' ? `⏳ Timer set for ${pkg}! Will block in ${minutes} min.` : `⏳ ${pkg} साठी टायमर सेट! ${minutes} मिनिटांत ब्लॉक होईल.`);
+
+                setTimeout(() => {
+                    if (!blockedConfigList.includes(pkg)) {
+                        blockedConfigList.push(pkg);
+                        renderSimulatedApps();
+                        showToast(currentLang === 'en' ? `⏳ Timer expired! ${pkg} is now blocked.` : `⏳ टायमर संपला! ${pkg} ब्लॉक झाले आहे.`, 'error');
+                        if (currentlyOpenApp === pkg) {
+                            showBlockScreen(pkg);
+                        }
+                    }
+                }, minutes * 60 * 1000);
+            }
+        }
+
+        function startParentalControlsSync() {
+            if (updateIntervalId) clearInterval(updateIntervalId);
+            // Sync immediately and then every 7 seconds
+            syncParentalData();
+            updateIntervalId = setInterval(syncParentalData, 7000);
+        }
+
+        function stopParentalControlsSync() {
+            if (updateIntervalId) {
+                clearInterval(updateIntervalId);
+                updateIntervalId = null;
+            }
+        }
+
+        async function syncParentalData() {
+            if (!dataConn || !dataConn.open) return;
+
+            let usage = {};
+            let notifications = [];
+            let apps = [];
+
+            // 1. Fetch from native Android ParentalControlPlugin if loaded
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ParentalControl) {
+                try {
+                    const pc = window.Capacitor.Plugins.ParentalControl;
+
+                    const hasUsage = await pc.checkUsagePermission();
+                    if (hasUsage.granted) {
+                        const usageRes = await pc.getAppUsage();
+                        usage = usageRes;
+                    }
+
+                    const hasNotif = await pc.checkNotificationPermission();
+                    if (hasNotif.granted) {
+                        const notifRes = await pc.getNotifications();
+                        notifications = notifRes.notifications || [];
+                    }
+
+                    const appsRes = await pc.getInstalledApps();
+                    apps = appsRes.apps || [];
+                } catch (e) {
+                    console.error("Capacitor native call failed", e);
+                }
+            }
+
+            // 2. Fallbacks for simulator/browser testing
+            if (Object.keys(usage).length === 0) usage = simulatedUsageList;
+            if (notifications.length === 0) notifications = simulatedNotificationsList;
+            if (apps.length === 0) apps = simulatedAppsList;
+
+            // Increment usage stats in background simulation to make the dashboard feel alive and interactive!
+            for (const key in simulatedUsageList) {
+                if (Math.random() > 0.6) {
+                    simulatedUsageList[key] += Math.floor(Math.random() * 3) + 1;
+                }
+            }
+
+            // Simulate incoming random notification logs over time in browser
+            if (Math.random() > 0.8 && notifications === simulatedNotificationsList) {
+                const senders = ["Mom", "Rahul", "Sneha", "Wife", "Teacher"];
+                const texts = ["Are you done?", "Come home soon", "Sent you homework", "Where are you?", "Join the class"];
+                const sender = senders[Math.floor(Math.random() * senders.length)];
+                const text = texts[Math.floor(Math.random() * texts.length)];
+                simulatedNotificationsList.push({
+                    packageName: "com.whatsapp",
+                    title: sender + " (WhatsApp)",
+                    text: text,
+                    timestamp: Date.now()
+                });
+                if (simulatedNotificationsList.length > 20) {
+                    simulatedNotificationsList.shift();
+                }
+            }
+
+            dataConn.send({
+                type: 'parental-sync',
+                usageStats: usage,
+                notifications: notifications,
+                installedApps: apps,
+                installRequests: simulatedInstallRequests
+            });
+        }
+
+        let currentlyOpenApp = null;
+
+        function renderSimulatedApps() {
+            const container = document.getElementById('simulatedAppsContainer');
+            if (!container) return;
+
+            container.innerHTML = '';
+            simulatedAppsList.forEach(app => {
+                const isBlocked = blockedConfigList.includes(app.packageName);
+                const card = document.createElement('div');
+                card.className = 'simulated-app-card';
+                card.onclick = () => launchSimulatedApp(app.packageName, app.appName);
+
+                let icon = '📱';
+                if (app.packageName.includes('youtube')) icon = '📺';
+                else if (app.packageName.includes('whatsapp')) icon = '🟢';
+                else if (app.packageName.includes('facebook')) icon = '🔵';
+                else if (app.packageName.includes('instagram')) icon = '📸';
+
+                const statusText = isBlocked
+                    ? (currentLang === 'en' ? '🛑 Blocked' : '🛑 ब्लॉक आहे')
+                    : (currentLang === 'en' ? '🟢 Allowed' : '🟢 परवानगी आहे');
+
+                card.innerHTML = `
+                    <div class="simulated-app-icon">${icon}</div>
+                    <div class="simulated-app-name">${app.appName}</div>
+                    <div class="simulated-app-status ${isBlocked ? 'blocked' : ''}">${statusText}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function launchSimulatedApp(packageName, appName) {
+            currentlyOpenApp = packageName;
+            if (blockedConfigList.includes(packageName)) {
+                showBlockScreen(packageName);
+            } else {
+                showToast(currentLang === 'en'
+                    ? `Launched ${appName} successfully.`
+                    : `${appName} यशस्वीरित्या चालू झाले.`);
+                currentlyOpenApp = null;
+            }
+        }
+
+        function showBlockScreen(packageName) {
+            const overlay = document.getElementById('blockedOverlay');
+            const titleEl = document.getElementById('blockedTitle');
+            const descEl = document.getElementById('blockedDesc');
+
+            let appName = packageName.split('.').pop().toUpperCase();
+            if (packageName.includes('youtube')) appName = 'YouTube';
+            else if (packageName.includes('whatsapp')) appName = 'WhatsApp';
+            else if (packageName.includes('facebook')) appName = 'Facebook';
+            else if (packageName.includes('instagram')) appName = 'Instagram';
+
+            const title = translations.lblBlockTitle[currentLang] + ': ' + appName;
+            titleEl.textContent = title;
+            descEl.textContent = translations.lblBlockDesc[currentLang];
+            overlay.style.display = 'flex';
+        }
+
+        function closeBlockScreen() {
+            document.getElementById('blockedOverlay').style.display = 'none';
+            currentlyOpenApp = null;
+        }
+
+        function triggerInstallRequest() {
+            // Ask for application name
+            const appNamePromptMr = "इन्स्टॉल करायचे नवीन ॲपचे नाव टाका (उदा: SnapChat, FreeFire):";
+            const appNamePromptEn = "Enter the name of the application you want to install (e.g. SnapChat, FreeFire):";
+            const promptMsg = currentLang === 'en' ? appNamePromptEn : appNamePromptMr;
+
+            const appName = prompt(promptMsg);
+            if (!appName || appName.trim() === '') return;
+
+            const trimmedName = appName.trim();
+            const pkgName = "com.installed." + trimmedName.toLowerCase().replace(/\s+/g, '');
+
+            // Check if application is already installed/available
+            if (simulatedAppsList.some(a => a.packageName === pkgName)) {
+                showToast(currentLang === 'en' ? 'App is already installed!' : 'ॲप आधीच इन्स्टॉल केलेले आहे!');
+                return;
+            }
+
+            // Create a pending install request
+            const requestItem = {
+                packageName: pkgName,
+                appName: trimmedName,
+                timestamp: Date.now()
+            };
+
+            simulatedInstallRequests.push(requestItem);
+            showToast(currentLang === 'en'
+                ? `Install request sent to parent for ${trimmedName}...`
+                : `${trimmedName} साठी आई-वडिलांकडे परवानगी विनंती पाठवली आहे...`);
+
+            // Trigger sync immediately to notify parents
+            syncParentalData();
+        }
+
+
+
+        // ─── Camera + Mic + Call ──────────────────────────────────────
+        async function startCameraAndCall(targetPeerId) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: true
+                });
+
+                // Call the parent peer
+                mediaConn = peer.call(targetPeerId, localStream);
+                mediaConn.on('stream', () => {
+                    // no-op: parent doesn't send back stream
+                });
+                mediaConn.on('close', () => {
+                    stopStreaming();
+                });
+                mediaConn.on('error', (e) => {
+                    setStatus('error', '⚠️ Video call error: ' + e);
+                });
+
+                // Show live phase
+                showPhase('phase-live');
+                setStatus('live', '🟢 Live Streaming सुरू आहे!');
+
+                liveStartTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+
+                // Send location updates every 15s
+                sendLocation();
+                locationInterval = setInterval(sendLocation, 15000);
+
+                showToast('📹 Streaming सुरू झाले! आई-बाबा पाहत आहेत.');
+
+            } catch (e) {
+                setStatus('error', '⚠️ Camera/Mic permission नाकारले. Please allow.');
+                showToast('⚠️ Camera आणि Mic permission द्या.');
+                showPhase('phase-scan');
+                console.error(e);
+            }
+        }
+
+        // ─── Location Sharing ─────────────────────────────────────────
+        function sendLocation() {
+            if (!dataConn || !dataConn.open) return;
+            navigator.geolocation.getCurrentPosition(pos => {
+                dataConn.send({
+                    type: 'location',
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy
+                });
+                document.getElementById('locStatus').textContent = '✅';
+            }, () => {
+                document.getElementById('locStatus').textContent = '❌';
+            }, { enableHighAccuracy: true, timeout: 8000 });
+        }
+
+        // ─── Stop streaming ───────────────────────────────────────────
+        function stopStreaming() {
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+            if (mediaConn) { mediaConn.close(); mediaConn = null; }
+            if (dataConn) { dataConn.close(); dataConn = null; }
+            if (peer) { peer.destroy(); peer = null; }
+            if (timerInterval) clearInterval(timerInterval);
+            if (locationInterval) clearInterval(locationInterval);
+
+            showPhase('phase-scan');
+            setStatus('idle', 'Streaming बंद केली. पुन्हा Scan करा.');
+            showToast('🔌 Streaming बंद केली.');
+        }
+
+        // ─── UI helpers ───────────────────────────────────────────────
+        function showPhase(id) {
+            document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function setStatus(type, msg) {
+            const dot = document.getElementById('sDot');
+            dot.className = 'sdot ' + type;
+            refreshStatusText();
+        }
+
+        // ─── Remote Siren Logic ───────────────────────────────────────
+        function startRemoteSiren() {
+            if (isSirenPlaying) return;
+            document.getElementById('remoteSirenBox').style.display = 'block';
+            playSiren();
+            showToast('🚨 REMOTE SIREN ACTIVATED BY PARENT!', 'error');
+        }
+
+        function stopRemoteSiren() {
+            document.getElementById('remoteSirenBox').style.display = 'none';
+            stopSiren();
+        }
+
+        function playSiren() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (isSirenPlaying) return;
+
+                sirenGain = audioCtx.createGain();
+                sirenOsc1 = audioCtx.createOscillator();
+                sirenOsc2 = audioCtx.createOscillator();
+
+                sirenOsc1.type = 'sawtooth';
+                sirenOsc1.frequency.setValueAtTime(800, audioCtx.currentTime);
+
+                sirenOsc2.type = 'sine';
+                sirenOsc2.frequency.setValueAtTime(2, audioCtx.currentTime);
+
+                let osc2Gain = audioCtx.createGain();
+                osc2Gain.gain.setValueAtTime(300, audioCtx.currentTime);
+
+                sirenOsc2.connect(osc2Gain);
+                osc2Gain.connect(sirenOsc1.frequency);
+
+                sirenOsc1.connect(sirenGain);
+                sirenGain.connect(audioCtx.destination);
+
+                sirenGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+
+                sirenOsc1.start();
+                sirenOsc2.start();
+                isSirenPlaying = true;
+            } catch (e) {
+                console.error("Siren failed: ", e);
+            }
+        }
+
+        function stopSiren() {
+            if (sirenOsc1) {
+                try { sirenOsc1.stop(); } catch (e) { }
+                sirenOsc1.disconnect();
+                sirenOsc1 = null;
+            }
+            if (sirenOsc2) {
+                try { sirenOsc2.stop(); } catch (e) { }
+                sirenOsc2.disconnect();
+                sirenOsc2 = null;
+            }
+            if (sirenGain) {
+                sirenGain.disconnect();
+                sirenGain = null;
+            }
+            isSirenPlaying = false;
+        }
+
+        function updateTimer() {
+            if (!liveStartTime) return;
+            const secs = Math.floor((Date.now() - liveStartTime) / 1000);
+            const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+            const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+            const s = String(secs % 60).padStart(2, '0');
+            const el = document.getElementById('liveTimer');
+            if (el) el.textContent = `${h}:${m}:${s}`;
+        }
+
+        function showToast(msg, type = 'info') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.background = type === 'error' ? 'var(--primary)' : '#1a2030';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 4000);
+        }
+
+        // ─── Start ────────────────────────────────────────────────────
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get('pid');
+
+            // Load language preference
+            const savedLang = localStorage.getItem('rakshak_lang');
+            if (savedLang) currentLang = savedLang;
+
+            applyLanguage();
+            renderSimulatedApps();
+
+            if (pid) {
+                // Auto-connect if launched from QR scan
+                setStatus('connecting', 'QR Scan यशस्वी! Connect होत आहे...');
+                parentPeerId = pid;
+                showPhase('phase-connecting');
+                initChildPeer(pid);
+            }
+        });
+    </script>
+</body>
+
+</html>

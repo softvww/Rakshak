@@ -1,0 +1,32 @@
+# Node modules
+node_modules/
+
+# Android build outputs
+android/app/build/
+android/.gradle/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+
+# APK files (track source, not binaries)
+*.apk
+*.aab
+*.zip
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# PDF & generated guides (optional — remove if you want to track them)
+usage_guide.pdf
+usage_guide_with_images.pdf

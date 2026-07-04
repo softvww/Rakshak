@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rakshak — पालक निगराणी (Parent Monitor)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #040810;
+            --surface: #0d1117;
+            --card: #111827;
+            --border: rgba(255, 255, 255, 0.07);
+            --primary: #ff3b30;
+            --primary-glow: rgba(255, 59, 48, 0.3);
+            --accent: #00d4ff;
+            --accent-glow: rgba(0, 212, 255, 0.2);
+            --green: #00e676;
+            --green-glow: rgba(0, 230, 118, 0.2);
+            --text: #f0f4ff;
+            --text-muted: #8892a4;
+            --yellow: #ffcc00;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Ambient orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .orb-1 {
+            background: var(--primary);
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            left: -100px;
+        }
+
+        .orb-2 {
+            background: var(--accent);
+            width: 300px;
+            height: 300px;
+            bottom: -50px;
+            right: -50px;
+        }
+
+        /* Header */
+        .app-header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: rgba(13, 17, 23, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ff3b30, #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .badge-parent {
+            background: linear-gradient(135deg, var(--accent), #7b2fff);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+        }
+
+        /* Main layout */
+        .main-content {
+            position: relative;
+            z-index: 5;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+        }
+
+        /* Status bar */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .status-dot.waiting {
+            background: var(--yellow);
+            box-shadow: 0 0 8px var(--yellow);
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        .status-dot.error {
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        #statusText {
+            font-size: 14px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .peer-id-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* Two column layout */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        /* QR Code Box */
+        .qr-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+        #qrCanvas {
+            background: white;
+            border-radius: 16px;
+            padding: 12px;
+            width: 200px;
+            height: 200px;
+        }
+
+        .qr-placeholder {
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .qr-placeholder .icon {
+            font-size: 36px;
+        }
+
+        .session-id-display {
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--accent);
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .gen-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #7b2fff, var(--accent));
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .gen-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .gen-btn:active {
+            transform: translateY(0);
+        }
+
+        .gen-btn.danger {
+            background: linear-gradient(135deg, var(--primary), #ff6b35);
+        }
+
+        .gen-btn.green {
+            background: linear-gradient(135deg, #00c853, var(--green));
+        }
+
+        /* Live Video Area */
+        .video-wrapper {
+            position: relative;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            border: 2px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #liveVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .video-hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 10px 14px;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .hud-live-badge {
+            background: var(--primary);
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            letter-spacing: 0.5px;
+        }
+
+        .hud-live-dot {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse-dot 1s infinite;
+        }
+
+        .hud-time {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            font-family: monospace;
+        }
+
+        .video-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 12px;
+            background: #000;
+        }
+
+        .video-placeholder .big-icon {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+
+        /* Location card */
+        .location-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 230, 118, 0.1);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: var(--green);
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        #locationText {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .maps-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #00c853, #00e676);
+            color: #001f0a;
+            font-weight: 700;
+            font-size: 13px;
+            text-decoration: none;
+            margin-top: 12px;
+            transition: opacity 0.2s;
+        }
+
+        .maps-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Audio indicators */
+        .audio-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .audio-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 20px;
+        }
+
+        .audio-bar {
+            width: 3px;
+            background: var(--green);
+            border-radius: 2px;
+            transition: height 0.15s;
+        }
+
+        #audioLabel {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Instructions */
+        .step-list {
+            list-style: none;
+        }
+
+        .step-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .step-list li:last-child {
+            border-bottom: none;
+        }
+
+        .step-num {
+            width: 22px;
+            height: 22px;
+            background: linear-gradient(135deg, #7b2fff, var(--accent));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 800;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1a2030;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 13px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            z-index: 999;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Connection info pill */
+        .info-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 204, 0, 0.08);
+            border: 1px solid rgba(255, 204, 0, 0.2);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--yellow);
+            margin-bottom: 14px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Child snapshot grid */
+        .snap-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .snap-grid img {
+            width: 100%;
+            aspect-ratio: 4/3;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        #watchdog-status {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        /* New Dashboards Styles */
+        .progress-outer {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .progress-inner {
+            height: 100%;
+            border-radius: 6px;
+            background: linear-gradient(90deg, var(--accent), #7b2fff);
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .progress-inner.youtube {
+            background: linear-gradient(90deg, #ff0000, #ff5555);
+        }
+
+        .progress-inner.whatsapp {
+            background: linear-gradient(90deg, #25d366, #128c7e);
+        }
+
+        .progress-inner.facebook {
+            background: linear-gradient(90deg, #1877f2, #3b5998);
+        }
+
+        .progress-inner.instagram {
+            background: linear-gradient(90deg, #f56040, #fd1d1d);
+        }
+
+        .stat-row {
+            margin-bottom: 12px;
+        }
+
+        .stat-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .stat-meta strong {
+            color: var(--text);
+        }
+
+        .notif-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .notif-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            animation: slide-in 0.3s ease-out;
+        }
+
+        @keyframes slide-in {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .notif-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .notif-title {
+            color: var(--accent);
+        }
+
+        .notif-time {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .notif-body {
+            font-size: 12px;
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        /* App list blocker */
+        .app-list-container {
+            max-height: 280px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+            padding-right: 4px;
+        }
+
+        .app-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 8px 12px;
+        }
+
+        .app-appname {
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .app-pkgname {
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .block-toggle-btn {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(255, 59, 48, 0.2);
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .block-toggle-btn.blocked {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .block-toggle-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Installation approvals box */
+        .approval-box {
+            background: rgba(255, 204, 0, 0.08);
+            border: 1px solid rgba(255, 204, 0, 0.2);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+
+            0%,
+            100% {
+                border-color: rgba(255, 204, 0, 0.2);
+            }
+
+            50% {
+                border-color: rgba(255, 204, 0, 0.6);
+            }
+        }
+
+        .approval-text {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .approval-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .approval-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .approval-btn.yes {
+            background: var(--green);
+            color: #001a06;
+        }
+
+        .approval-btn.no {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="brand">
+            <div>
+                <div class="brand-logo">RAKSHAK</div>
+                <div class="brand-sub" id="hdrSub">पालक निगराणी केंद्र</div>
+            </div>
+            <span class="badge-parent" id="hdrBadgeParent">👨‍👧 PARENT MODE</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="langToggleBtn" onclick="toggleLanguage()"
+                style="background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 10px; font-size: 12px; cursor: pointer; font-weight: 600;">
+                🌐 <span id="langBtnText">English</span>
+            </button>
+            <a href="index.html" class="back-btn" id="btnBack">← <span id="btnBackText">परत जा</span></a>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <div class="main-content">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+            <div class="status-dot waiting" id="statusDot"></div>
+            <span id="statusText">Session तयार करत आहे... कृपया थांबा.</span>
+            <span class="peer-id-label" id="peerIdLabel"></span>
+        </div>
+
+        <div class="two-col">
+
+            <!-- QR Generator Card -->
+            <div class="card">
+                <div class="card-title">📱 QR Code — मुलाच्या फोनसाठी</div>
+                <div class="card-desc">हा QR Code मुलाच्या फोनवरून स्कॅन करा. स्कॅन केल्यावर Live Video/Audio सुरू होईल.
+                </div>
+
+                <div class="qr-box">
+                    <div id="qrPlaceholder" class="qr-placeholder">
+                        <span class="icon">⏳</span>
+                        <span>Session तयार होत आहे...</span>
+                    </div>
+                    <canvas id="qrCanvas" style="display:none; width:200px; height:200px;"></canvas>
+
+                    <div id="sessionDisplay" class="session-id-display" style="display:none;">
+                        Session: <span id="sessionIdText">---</span>
+                    </div>
+
+                    <button class="gen-btn" id="refreshBtn" onclick="refreshSession()" style="display:none;">
+                        🔄 नवीन QR Generate करा
+                    </button>
+                    <button class="gen-btn danger" id="disconnectBtn" onclick="disconnectChild()" style="display:none;">
+                        ❌ Connection बंद करा
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Video Card -->
+            <div class="card">
+                <div class="card-title">📹 Live Video — मूल काय करतंय?</div>
+                <div class="card-desc" id="videoCardDesc">मुलाने QR Scan केल्यावर येथे Live Camera दिसेल.</div>
+
+                <div class="video-wrapper">
+                    <video id="liveVideo" autoplay playsinline></video>
+
+                    <div class="video-hud" id="videoHUD" style="display:none;">
+                        <div class="hud-live-badge">
+                            <div class="hud-live-dot"></div>
+                            LIVE
+                        </div>
+                        <div class="hud-time" id="liveHudTime">00:00:00</div>
+                    </div>
+
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <div class="big-icon">📵</div>
+                        <span>QR Scan होण्याची वाट पाहत आहे...</span>
+                    </div>
+                </div>
+
+                <!-- Audio indicator -->
+                <div class="audio-indicator" id="audioIndicator" style="display:none;">
+                    <div class="audio-bars" id="audioBars">
+                        <div class="audio-bar" id="ab1" style="height:4px;"></div>
+                        <div class="audio-bar" id="ab2" style="height:8px;"></div>
+                        <div class="audio-bar" id="ab3" style="height:14px;"></div>
+                        <div class="audio-bar" id="ab4" style="height:8px;"></div>
+                        <div class="audio-bar" id="ab5" style="height:4px;"></div>
+                    </div>
+                    <span id="audioLabel">🎤 मुलाचा आवाज ऐकू येत आहे...</span>
+                </div>
+
+                <!-- Remote Controls -->
+                <div id="remoteControls"
+                    style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+                    <button class="gen-btn danger" id="sirenBtn" onmousedown="triggerSiren(true)"
+                        onmouseup="triggerSiren(false)" ontouchstart="triggerSiren(true)"
+                        ontouchend="triggerSiren(false)">
+                        📢 <span id="sirenBtnText">Siren वाजवा (पुश करा)</span>
+                    </button>
+                    <div style="font-size:10px; color:var(--text-muted); text-align:center; margin-top:6px;"
+                        id="sirenHint">बटण दाबून धरा, अलार्म वाजवण्यासाठी.</div>
+                </div>
+            </div>
+
+            <!-- Location Card -->
+            <div class="card">
+                <div class="card-title">📍 <span id="lblLocTitle">मुलाचे Location</span></div>
+
+                <div id="locationSection">
+                    <div class="info-pill" id="lblLocWait">⏳ मुलाने QR Scan केल्यावर location दिसेल</div>
+                </div>
+            </div>
+
+            <!-- Screen Time Tracker Card -->
+            <div class="card" id="screenTimeCard" style="display:none;">
+                <div class="card-title">📊 <span id="lblUsageTitle">सोशल मीडिया वापर (आजचा वेळ)</span></div>
+                <div class="card-desc" id="lblUsageDesc">मुलाचा आजचा सोशल मीडियाचा वापर खलीलप्रमाणे आहे:</div>
+
+                <div id="usageStatsContainer">
+                    <!-- Dynamic usage rows -->
+                    <div class="stat-row">
+                        <div class="stat-meta"><span>YouTube</span><strong id="time-youtube">0 min</strong></div>
+                        <div class="progress-outer">
+                            <div class="progress-inner youtube" id="bar-youtube"></div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-meta"><span>WhatsApp</span><strong id="time-whatsapp">0 min</strong></div>
+                        <div class="progress-outer">
+                            <div class="progress-inner whatsapp" id="bar-whatsapp"></div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-meta"><span>Facebook</span><strong id="time-facebook">0 min</strong></div>
+                        <div class="progress-outer">
+                            <div class="progress-inner facebook" id="bar-facebook"></div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-meta"><span>Instagram</span><strong id="time-instagram">0 min</strong></div>
+                        <div class="progress-outer">
+                            <div class="progress-inner instagram" id="bar-instagram"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification Mirror Inbox Card -->
+            <div class="card" id="notificationsMirrorCard" style="display:none;">
+                <div class="card-title">💬 <span id="lblNotifTitle">संदेश निगराणी (Notifications)</span></div>
+                <div class="card-desc" id="lblNotifDesc">मुलाच्या फोनवर आलेले महत्त्वाचे सोशल मीडिया संदेश:</div>
+
+                <div class="notif-list" id="notifListContainer">
+                    <div style="font-size:11px; color:var(--text-muted); text-align:center; font-style:italic;"
+                        id="lblNoNotif">कोणतेही नवीन संदेश नाहीत.</div>
+                </div>
+            </div>
+
+            <!-- App Permissions & Block Control Card -->
+            <div class="card" id="appPermissionsCard" style="display:none;">
+                <div class="card-title">🔒 <span id="lblAppLockTitle">ॲप ब्लॉक व परवानग्या (App Blocker)</span></div>
+                <div class="card-desc" id="lblAppLockDesc">मुलाच्या फोनमधील ॲप्स नियंत्रित करा. ब्लॉक केलेले ॲप्लिकेशन
+                    मूल वापरू शकणार नाही.</div>
+
+                <!-- Install Approvals Alert Box -->
+                <div id="installApprovalsContainer"></div>
+
+                <!-- Installed apps list -->
+                <div class="app-list-container" id="appListContainer">
+                    <!-- Dynamic app list with blocker toggles -->
+                </div>
+            </div>
+
+            <!-- How To Use -->
+            <div class="card">
+                <div class="card-title">ℹ️ कसे वापरायचे?</div>
+
+                <ul class="step-list">
+                    <li>
+                        <div class="step-num">1</div>
+                        <span>हे page उघडा आणि QR Code तयार होण्याची वाट पाहा.</span>
+                    </li>
+                    <li>
+                        <div class="step-num">2</div>
+                        <span>तयार झालेला QR Code मुलाच्या फोनवर दाखवा किंवा Screenshot पाठवा.</span>
+                    </li>
+                    <li>
+                        <div class="step-num">3</div>
+                        <span><strong>मूल</strong> आपल्या फोनवर <strong>child-qr.html</strong> उघडेल आणि QR Scan
+                            करेल.</span>
+                    </li>
+                    <li>
+                        <div class="step-num">4</div>
+                        <span>Scan झाल्यावर मुलाचा Camera/Mic सुरू होईल — येथे Live Video/Audio दिसेल.</span>
+                    </li>
+                    <li>
+                        <div class="step-num">5</div>
+                        <span>मूल School मध्ये, Auto/Bus मध्ये कुठेही असलं तरी तुम्ही Live पाहू शकता. 📡</span>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+
+        <!-- Snapshots section (hidden until connected) -->
+        <div class="card" id="snapshotCard" style="margin-top:16px; display:none;">
+            <div class="card-title">📸 Captured Snapshots</div>
+            <div class="card-desc">मुलाच्या camera वरून auto-captured photos</div>
+            <div class="snap-grid" id="snapGrid"></div>
+            <div id="watchdog-status">📡 Auto snapshot: दर 30 सेकंदात</div>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">Toast message</div>
+
+    <script>
+        // ─── Translations ─────────────────────────────────────────────
+        let currentLang = 'mr'; // Start with Marathi as user preferred
+        const translations = {
+            'hdrSub': { en: 'Parent Monitoring Center', mr: 'पालक निगराणी केंद्र' },
+            'hdrBadgeParent': { en: '👨‍👧 PARENT MODE', mr: '👨‍👧 पेरेंट मोड' },
+            'langBtnText': { en: 'मराठी', mr: 'English' },
+            'btnBackText': { en: 'Go Back', mr: 'परत जा' },
+            'statusText': {
+                waiting: { en: 'Creating session... Please wait.', mr: 'Session तयार करत आहे... कृपया थांबा.' },
+                ready: { en: 'QR Code is ready — Ask child to scan', mr: 'QR Code तयार आहे — मुलाला Scan करायला सांगा' },
+                connected: { en: '✅ Child is Live! Video/Audio active.', mr: '✅ मूल Live आहे! Video/Audio चालू आहे.' },
+                error: { en: '⚠️ Connection error', mr: '⚠️ Connection त्रुटी' },
+                reconnecting: { en: 'Server connection lost. Reconnecting...', mr: 'Server शी connection तुटले. Reconnecting...' }
+            },
+            'qrCardTitle': { en: '📱 QR Code — For Child\'s Phone', mr: '📱 QR Code — मुलाच्या फोनसाठी' },
+            'qrCardDesc': { en: 'Scan this QR code from the child\'s phone to start monitoring.', mr: 'हा QR Code मुलाच्या फोनवरून स्कॅन करा. स्कॅन केल्यावर Live Video सुरू होईल.' },
+            'qrPlaceholderText': { en: 'Creating Session...', mr: 'Session तयार होत आहे...' },
+            'btnRefreshText': { en: '🔄 Generate New QR', mr: '🔄 नवीन QR Generate करा' },
+            'btnDisconnectText': { en: '❌ Disconnect Child', mr: '❌ Connection बंद करा' },
+            'videoCardTitle': { en: '📹 Live Video — What is the child doing?', mr: '📹 Live Video — मूल काय करतंय?' },
+            'videoCardDesc': { en: 'Live camera will appear here after QR scan.', mr: 'मुलाने QR Scan केल्यावर येथे Live Camera दिसेल.' },
+            'videoPlaceholderText': { en: 'Waiting for QR scan...', mr: 'QR Scan होण्याची वाट पाहत आहे...' },
+            'audioLabel': { en: '🎤 Receiving child\'s audio...', mr: '🎤 मुलाचा आवाज ऐकू येत आहे...' },
+            'sirenBtnText': { en: 'Trigger Siren (Push)', mr: 'Siren वाजवा (पुश करा)' },
+            'sirenHint': { en: 'Hold button to keep alarm sounding.', mr: 'बटण दाबून धरा, अलार्म वाजवण्यासाठी.' },
+            'locationCardTitle': { en: '📍 Child\'s Location', mr: '📍 मुलाचे Location' },
+            'locationWait': { en: '⏳ Location will appear after QR scan', mr: '⏳ मुलाने QR Scan केल्यावर location दिसेल' },
+            'lblLocTitle': { en: 'Child\'s Location', mr: 'मुलाचे Location' },
+            'lblLocWait': { en: '⏳ Location will appear after QR scan', mr: '⏳ मुलाने QR Scan केल्यावर location दिसेल' },
+            'lblUsageTitle': { en: 'Social Media Screen Time (Today)', mr: 'सोशल मीडिया वापर (आजचा वेळ)' },
+            'lblUsageDesc': { en: 'Real-time daily usage minutes on target social media applications:', mr: 'मुलाचा आजचा सोशल मीडियाचा वापर खालीलप्रमाणे आहे:' },
+            'lblNotifTitle': { en: 'Message Monitoring (Notifications)', mr: 'संदेश निगराणी (Notifications)' },
+            'lblNotifDesc': { en: 'Mirroring important messaging & social notifications from child\'s device:', mr: 'मुलाच्या फोनवर आलेले महत्त्वाचे सोशल मीडिया संदेश:' },
+            'lblNoNotif': { en: 'No notification messages received yet.', mr: 'कोणतेही नवीन संदेश नाहीत.' },
+            'lblAppLockTitle': { en: 'App Controls & Blocking Center', mr: 'ॲप ब्लॉक व परवानग्या (App Blocker)' },
+            'lblAppLockDesc': { en: 'Restrict apps. Blocked applications will deny access on the child\'s phone.', mr: 'मुलाच्या फोनमधील ॲप्स नियंत्रित करा. ब्लॉक केलेले ॲप्लिकेशन मूल वापरू शकणार नाही.' },
+            'howToTitle': { en: 'ℹ️ How to use?', mr: 'ℹ️ कसे वापरायचे?' },
+            'howToSteps': [
+                { en: 'Open this page and wait for the QR Code to generate.', mr: 'हे page उघडा आणि QR Code तयार होण्याची वाट पाहा.' },
+                { en: 'Show this QR code to your child\'s phone or send a screenshot.', mr: 'तयार झालेला QR Code मुलाच्या फोनवर दाखवा किंवा Screenshot पाठवा.' },
+                { en: 'The **child** will open **child-qr.html** and scan the QR.', mr: 'मुलाने आपल्या फोनवर child-qr.html उघडून QR Scan करावा.' },
+                { en: 'Once scanned, the camera/mic will start — you will see live video here.', mr: 'Scan झाल्यावर मुलाचा Camera/Mic सुरू होईल — येथे Live Video दिसेल.' },
+                { en: 'You can monitor them live wherever they are (school, bus, etc). 📡', mr: 'मूल School मध्ये, Auto/Bus मध्ये कुठेही असलं तरी तुम्ही पाहा. 📡' }
+            ],
+            'snapshotCardTitle': { en: '📸 Captured Snapshots', mr: '📸 टिपलेले फोटो' },
+            'snapshotCardDesc': { en: 'Auto-captured photos from child\'s camera', mr: 'मुलाच्या camera वरून auto-captured photos' },
+            'watchdogText': { en: '📡 Auto snapshot: every 30 seconds', mr: '📡 Auto snapshot: दर 30 सेकंदात' }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'mr' : 'en';
+            localStorage.setItem('rakshak_lang', currentLang);
+            applyLanguage();
+        }
+
+        function applyLanguage() {
+            document.getElementById('langBtnText').textContent = translations.langBtnText[currentLang];
+            document.getElementById('hdrSub').textContent = translations.hdrSub[currentLang];
+            document.getElementById('hdrBadgeParent').textContent = translations.hdrBadgeParent[currentLang];
+            document.getElementById('btnBackText').textContent = translations.btnBackText[currentLang];
+
+            // Cards
+            document.querySelector('.card:nth-of-type(1) .card-title').textContent = translations.qrCardTitle[currentLang];
+            document.querySelector('.card:nth-of-type(1) .card-desc').textContent = translations.qrCardDesc[currentLang];
+            document.getElementById('qrPlaceholder').querySelector('span:last-child').textContent = translations.qrPlaceholderText[currentLang];
+            document.getElementById('refreshBtn').innerHTML = translations.btnRefreshText[currentLang];
+            document.getElementById('disconnectBtn').innerHTML = translations.btnDisconnectText[currentLang];
+
+            document.querySelector('.card:nth-of-type(2) .card-title').textContent = translations.videoCardTitle[currentLang];
+            document.getElementById('videoCardDesc').textContent = translations.videoCardDesc[currentLang];
+            document.getElementById('videoPlaceholder').querySelector('span').textContent = translations.videoPlaceholderText[currentLang];
+            document.getElementById('audioLabel').textContent = translations.audioLabel[currentLang];
+            document.getElementById('sirenBtnText').textContent = translations.sirenBtnText[currentLang];
+            document.getElementById('sirenHint').textContent = translations.sirenHint[currentLang];
+
+            document.querySelector('.card:nth-of-type(3) .card-title').textContent = translations.locationCardTitle[currentLang];
+            const locWait = document.querySelector('#locationSection .info-pill');
+            if (locWait) locWait.textContent = translations.locationWait[currentLang];
+
+            document.querySelector('.card:nth-of-type(4) .card-title').textContent = translations.howToTitle[currentLang];
+            const steps = document.querySelectorAll('.step-list li span');
+            translations.howToSteps.forEach((s, i) => {
+                if (steps[i]) steps[i].textContent = s[currentLang];
+            });
+
+            document.getElementById('snapshotCard').querySelector('.card-title').textContent = translations.snapshotCardTitle[currentLang];
+            document.getElementById('snapshotCard').querySelector('.card-desc').textContent = translations.snapshotCardDesc[currentLang];
+            document.getElementById('watchdog-status').textContent = translations.watchdogText[currentLang];
+
+            refreshStatusText();
+        }
+
+        function refreshStatusText() {
+            const dot = document.getElementById('statusDot');
+            let state = 'waiting';
+            if (dot.classList.contains('waiting')) state = 'waiting';
+            else if (dot.classList.contains('connected')) state = 'connected';
+            else if (dot.classList.contains('error')) state = 'error';
+
+            let msg = translations.statusText[state][currentLang];
+            // Special handling for ready state during waiting
+            if (state === 'waiting' && sessionId) msg = translations.statusText.ready[currentLang];
+
+            document.getElementById('statusText').textContent = msg;
+        }
+
+        // ─── Globals ───────────────────────────────────────────────────
+        let peer = null;
+        let conn = null;
+        let mediaConn = null;
+        let sessionId = null;
+        let liveStartTime = null;
+        let hudInterval = null;
+        let audioCtxMon = null;
+        let audioAnalyser = null;
+        let snapshotTimer = null;
+
+        // ─── Generate random session ID ────────────────────────────────
+        function generateSessionId() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let id = 'RSK-';
+            for (let i = 0; i < 8; i++) {
+                id += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return id;
+        }
+
+        // ─── Initialise PeerJS ─────────────────────────────────────────
+        function initPeer() {
+            sessionId = generateSessionId();
+
+            // 🔑 KEY FIX: Show QR IMMEDIATELY — don't wait for PeerJS!
+            showQR(sessionId);
+            document.getElementById('refreshBtn').style.display = 'flex';
+            document.getElementById('sessionDisplay').style.display = 'block';
+            document.getElementById('sessionIdText').textContent = sessionId;
+            setStatus('waiting', '⏳ QR तयार आहे! Network connect होत आहे...');
+
+            setStatus('waiting', `Session तयार होत आहे... (${sessionId})`);
+
+            peer = new Peer(sessionId, {
+                debug: 0,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', (id) => {
+                setStatus('waiting', 'QR Code तयार आहे — मुलाला Scan करायला सांगा');
+                showQR(id);
+                document.getElementById('refreshBtn').style.display = 'flex';
+                document.getElementById('sessionDisplay').style.display = 'block';
+                document.getElementById('sessionIdText').textContent = id;
+                document.getElementById('peerIdLabel').textContent = '';
+            });
+
+            peer.on('call', (call) => {
+                // Auto-answer — we don't need to send anything, just receive
+                mediaConn = call;
+                call.answer(); // answer with no stream (parent just watches)
+
+                call.on('stream', (remoteStream) => {
+                    startLiveView(remoteStream);
+                });
+
+                call.on('close', () => {
+                    endLiveView();
+                });
+
+                call.on('error', (e) => {
+                    setStatus('error', 'Video error: ' + e.message);
+                });
+
+                showToast('📹 Live Video सुरू झाले!');
+            });
+
+            peer.on('connection', (dataConn) => {
+                conn = dataConn;
+                conn.on('data', (data) => {
+                    handleChildData(data);
+                });
+                conn.on('close', () => {
+                    setStatus('error', 'मुलाने connection बंद केले. नवीन QR Generate करा.');
+                    endLiveView();
+                });
+            });
+
+            peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // ID taken, retry
+                    peer.destroy();
+                    setTimeout(initPeer, 1000);
+                } else {
+                    setStatus('error', '⚠️ Connection error: ' + err.type);
+                    console.error(err);
+                }
+            });
+
+            peer.on('disconnected', () => {
+                setStatus('error', 'Server शी connection तुटले. Reconnecting...');
+                peer.reconnect();
+            });
+        }
+
+        let blockedConfigList = []; // Keeps track of packages parent blocked
+        let installApprovalRequests = []; // Pending install approvals
+
+        // When child sends data (location etc.)
+        function handleChildData(data) {
+            if (data.type === 'location') {
+                updateLocation(data);
+            } else if (data.type === 'status') {
+                showToast(currentLang === 'en' ? '📱 Child Status: ' + data.text : '📱 मुलाची स्थिती: ' + data.text);
+            } else if (data.type === 'snapshot') {
+                addSnapshot(data.imageData);
+            } else if (data.type === 'parental-sync') {
+                // Main sync packet containing stats, notifications, apps
+                showParentalControlsDashboard();
+                if (data.usageStats) updateUsageStatsUI(data.usageStats);
+                if (data.notifications) updateNotificationsUI(data.notifications);
+                if (data.installedApps) updateAppBlockerUI(data.installedApps);
+                if (data.installRequests) updateInstallRequestsUI(data.installRequests);
+            }
+        }
+
+        // Show the panel divs when child connects
+        function showParentalControlsDashboard() {
+            document.getElementById('screenTimeCard').style.display = 'block';
+            document.getElementById('notificationsMirrorCard').style.display = 'block';
+            document.getElementById('appPermissionsCard').style.display = 'block';
+        }
+
+        // Update Usage statistics
+        function updateUsageStatsUI(stats) {
+            const targets = [
+                { pkg: 'com.google.android.youtube', id: 'youtube', label: 'YouTube' },
+                { pkg: 'com.whatsapp', id: 'whatsapp', label: 'WhatsApp' },
+                { pkg: 'com.facebook.katana', id: 'facebook', label: 'Facebook' },
+                { pkg: 'com.facebook.lite', id: 'facebook', label: 'Facebook' },
+                { pkg: 'com.instagram.android', id: 'instagram', label: 'Instagram' }
+            ];
+
+            targets.forEach(t => {
+                const minutes = stats[t.pkg] || 0;
+                const minText = currentLang === 'en' ? `${minutes} mins` : `${minutes} मिनिटे`;
+                const labelEl = document.getElementById(`time-${t.id}`);
+                const barEl = document.getElementById(`bar-${t.id}`);
+
+                if (labelEl) labelEl.textContent = minText;
+
+                if (barEl) {
+                    // Set percentage relative to 120 minutes (2 hrs) budget
+                    const percent = Math.min(100, (minutes / 120) * 100);
+                    barEl.style.width = percent + '%';
+                }
+            });
+        }
+
+        // Update Notification lists
+        function updateNotificationsUI(notifications) {
+            const container = document.getElementById('notifListContainer');
+            if (!container) return;
+
+            if (!notifications || notifications.length === 0) {
+                container.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; font-style:italic;" id="lblNoNotif">${currentLang === 'en' ? 'No notification messages received yet.' : 'कोणतेही नवीन संदेश नाहीत.'
+                    }</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            notifications.forEach(n => {
+                const date = new Date(n.timestamp);
+                const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                // Get human readable app name
+                let appName = n.packageName.split('.').pop().toUpperCase();
+                if (n.packageName.includes('whatsapp')) appName = 'WhatsApp 🟢';
+                else if (n.packageName.includes('facebook')) appName = 'Facebook 🔵';
+                else if (n.packageName.includes('instagram')) appName = 'Instagram 📸';
+                else if (n.packageName.includes('messaging') || n.packageName.includes('telephony')) appName = 'SMS 💬';
+
+                const notifDiv = document.createElement('div');
+                notifDiv.className = 'notif-item';
+                notifDiv.innerHTML = `
+                    <div class="notif-header">
+                        <span class="notif-title">${appName} - ${n.title}</span>
+                        <span class="notif-time">${timeStr}</span>
+                    </div>
+                    <div class="notif-body">${n.text}</div>
+                `;
+                container.appendChild(notifDiv);
+            });
+        }
+
+        // Update App Blocker list
+        function updateAppBlockerUI(apps) {
+            const container = document.getElementById('appListContainer');
+            if (!container) return;
+
+            if (!apps || apps.length === 0) {
+                container.innerHTML = '<div style="font-size:11px; color:var(--text-muted); text-align:center;">No apps returned.</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            apps.forEach(app => {
+                const isBlocked = blockedConfigList.includes(app.packageName);
+                const buttonTextEn = isBlocked ? '🛑 Blocked' : '🟢 Block';
+                const buttonTextMr = isBlocked ? '🛑 ब्लॉक आहे' : '🟢 ब्लॉक करा';
+                const buttonText = currentLang === 'en' ? buttonTextEn : buttonTextMr;
+
+                const row = document.createElement('div');
+                row.className = 'app-row';
+                row.innerHTML = `
+                    <div>
+                        <div class="app-appname">${app.appName}</div>
+                        <div class="app-pkgname">${app.packageName}</div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button class="timer-btn" onclick="setAppTimer('${app.packageName}', '${app.appName}')" style="background: rgba(255, 204, 0, 0.1); border: 1px solid rgba(255, 204, 0, 0.2); color: var(--yellow); border-radius: 8px; padding: 5px 10px; font-size: 10px; font-weight: 700; cursor: pointer;">
+                            ⏱️ Timer
+                        </button>
+                        <button class="block-toggle-btn ${isBlocked ? 'blocked' : ''}" 
+                            onclick="toggleAppBlock('${app.packageName}')">
+                            ${buttonText}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // Toggle app block in parent config
+        function toggleAppBlock(pkgName) {
+            if (blockedConfigList.includes(pkgName)) {
+                blockedConfigList = blockedConfigList.filter(p => p !== pkgName);
+                showToast(currentLang === 'en' ? `Unblocked app: ${pkgName}` : `ॲप ब्लॉक काढले: ${pkgName}`);
+            } else {
+                blockedConfigList.push(pkgName);
+                showToast(currentLang === 'en' ? `🛑 Blocked app: ${pkgName}` : `🛑 ॲप ब्लॉक केले: ${pkgName}`);
+            }
+
+            // Sync updated configuration list to the child device
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'block-settings',
+                    blockedApps: blockedConfigList
+                });
+            }
+        }
+
+        // Set Timed App Blocker
+        function setAppTimer(pkgName, appName) {
+            const promptMsg = currentLang === 'en'
+                ? `Automatically block ${appName} after how many minutes?`
+                : `${appName} किती मिनिटांनंतर आपोआप ब्लॉक करायचे?`;
+
+            const minStr = prompt(promptMsg, "15");
+            if (!minStr) return;
+            const minutes = parseInt(minStr, 10);
+            if (isNaN(minutes) || minutes <= 0) {
+                showToast("Invalid number of minutes.", "error");
+                return;
+            }
+
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'block-timer',
+                    packageName: pkgName,
+                    minutes: minutes
+                });
+                showToast(currentLang === 'en' ? `⏳ Timer active: ${appName} will be blocked in ${minutes} min.` : `⏳ टायमर सेट! ${appName} ${minutes} मिनिटांत ब्लॉक होईल.`);
+            } else {
+                showToast(currentLang === 'en' ? "Device disconnected." : "डिव्हाइस कनेक्टेड नाही.", "error");
+            }
+        }
+
+        // Update newly installed app requests UI
+        function updateInstallRequestsUI(requests) {
+            const container = document.getElementById('installApprovalsContainer');
+            if (!container) return;
+
+            if (!requests || requests.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = '';
+            requests.forEach(req => {
+                const reqDiv = document.createElement('div');
+                reqDiv.className = 'approval-box';
+
+                const alertTextEn = `📢 <strong>Permission Request:</strong> Child installed/wants to run <strong>${req.appName}</strong> (${req.packageName}). Install/run approved?`;
+                const alertTextMr = `📢 <strong>परवानगी विनंती:</strong> मुलाने <strong>${req.appName}</strong> (${req.packageName}) ॲप इन्स्टॉल केले आहे. परवानगी द्यायची?`;
+                const alertText = currentLang === 'en' ? alertTextEn : alertTextMr;
+
+                const yesText = currentLang === 'en' ? '✅ Approve (Yes)' : '✅ परवानगी द्या';
+                const noText = currentLang === 'en' ? '❌ Block (No)' : '❌ ब्लॉक करा';
+
+                reqDiv.innerHTML = `
+                    <div class="approval-text">${alertText}</div>
+                    <div class="approval-actions">
+                        <button class="approval-btn yes" onclick="handleInstallDecision('${req.packageName}', true)">${yesText}</button>
+                        <button class="approval-btn no" onclick="handleInstallDecision('${req.packageName}', false)">${noText}</button>
+                    </div>
+                `;
+                container.appendChild(reqDiv);
+            });
+        }
+
+        function handleInstallDecision(pkgName, approved) {
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'install-decision',
+                    packageName: pkgName,
+                    approved: approved
+                });
+
+                if (approved) {
+                    showToast(currentLang === 'en' ? `App ${pkgName} approved!` : `ॲप इन्स्टॉल मंजूर केले: ${pkgName}`);
+                    // Remove from blocked list if approved
+                    blockedConfigList = blockedConfigList.filter(p => p !== pkgName);
+                } else {
+                    showToast(currentLang === 'en' ? `App ${pkgName} blocked!` : `ॲप इन्स्टॉल ब्लॉक केले: ${pkgName}`);
+                    // Add to blocked list if blocked
+                    if (!blockedConfigList.includes(pkgName)) {
+                        blockedConfigList.push(pkgName);
+                    }
+                }
+
+                // Sync block config again
+                conn.send({
+                    type: 'block-settings',
+                    blockedApps: blockedConfigList
+                });
+            }
+        }
+
+        // When child sends data (location etc.)
+        function handleChildData(data) {
+            if (data.type === 'location') {
+                updateLocation(data);
+            } else if (data.type === 'status') {
+                showToast('📱 मुलाची स्थिती: ' + data.text);
+            } else if (data.type === 'snapshot') {
+                addSnapshot(data.imageData);
+            }
+        }
+
+        // ─── Show QR Code ──────────────────────────────────────────────
+        function showQR(peerId) {
+            const canvas = document.getElementById('qrCanvas');
+            const placeholder = document.getElementById('qrPlaceholder');
+
+            // Build URL for child page with peer ID
+            const childUrl = window.location.origin + window.location.pathname.replace('parent-monitor.html', 'child-qr.html') + '?pid=' + peerId;
+
+            QRCode.toCanvas(canvas, childUrl, {
+                width: 200,
+                margin: 1,
+                color: { dark: '#000000', light: '#ffffff' }
+            }, (err) => {
+                if (!err) {
+                    placeholder.style.display = 'none';
+                    canvas.style.display = 'block';
+                }
+            });
+        }
+
+        // ─── Start live view ───────────────────────────────────────────
+        function startLiveView(stream) {
+            const video = document.getElementById('liveVideo');
+            const placeholder = document.getElementById('videoPlaceholder');
+            const hud = document.getElementById('videoHUD');
+            const audioInd = document.getElementById('audioIndicator');
+            const snapCard = document.getElementById('snapshotCard');
+
+            video.srcObject = stream;
+            placeholder.style.display = 'none';
+            hud.style.display = 'flex';
+            audioInd.style.display = 'flex';
+            snapCard.style.display = 'block';
+
+            setStatus('connected', '✅ मूल Live आहे! Video/Audio चालू आहे.');
+
+            document.getElementById('disconnectBtn').style.display = 'flex';
+            document.getElementById('refreshBtn').style.display = 'none';
+
+            liveStartTime = Date.now();
+            hudInterval = setInterval(updateHudTime, 1000);
+
+            // Audio analyser for the bars
+            startAudioVisualization(stream);
+
+            // Auto snapshots every 30s
+            if (snapshotTimer) clearInterval(snapshotTimer);
+            snapshotTimer = setInterval(() => {
+                captureSnapshot(video);
+            }, 30000);
+        }
+
+        function endLiveView() {
+            const video = document.getElementById('liveVideo');
+            const placeholder = document.getElementById('videoPlaceholder');
+            const hud = document.getElementById('videoHUD');
+            const audioInd = document.getElementById('audioIndicator');
+
+            video.srcObject = null;
+            placeholder.style.display = 'flex';
+            hud.style.display = 'none';
+            audioInd.style.display = 'none';
+
+            if (hudInterval) clearInterval(hudInterval);
+            if (snapshotTimer) clearInterval(snapshotTimer);
+            if (audioCtxMon) { audioCtxMon.close(); audioCtxMon = null; }
+        }
+
+        function updateHudTime() {
+            const el = document.getElementById('liveHudTime');
+            if (!liveStartTime) return;
+            const secs = Math.floor((Date.now() - liveStartTime) / 1000);
+            const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+            const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+            const s = String(secs % 60).padStart(2, '0');
+            el.textContent = `${h}:${m}:${s}`;
+        }
+
+        // ─── Audio visualization ────────────────────────────────────────
+        function startAudioVisualization(stream) {
+            try {
+                audioCtxMon = new (window.AudioContext || window.webkitAudioContext)();
+                audioAnalyser = audioCtxMon.createAnalyser();
+                audioAnalyser.fftSize = 32;
+                const src = audioCtxMon.createMediaStreamSource(stream);
+                src.connect(audioAnalyser);
+
+                const data = new Uint8Array(audioAnalyser.frequencyBinCount);
+                const bars = [
+                    document.getElementById('ab1'),
+                    document.getElementById('ab2'),
+                    document.getElementById('ab3'),
+                    document.getElementById('ab4'),
+                    document.getElementById('ab5')
+                ];
+
+                function drawBars() {
+                    audioAnalyser.getByteFrequencyData(data);
+                    const vals = [data[1], data[2], data[3], data[4], data[5]];
+                    bars.forEach((bar, i) => {
+                        if (bar) bar.style.height = Math.max(4, (vals[i] / 255) * 24) + 'px';
+                    });
+                    requestAnimationFrame(drawBars);
+                }
+                drawBars();
+            } catch (e) {
+                console.error('Audio viz error:', e);
+            }
+        }
+
+        // ─── Location update ───────────────────────────────────────────
+        function updateLocation(data) {
+            const sec = document.getElementById('locationSection');
+            const time = new Date().toLocaleTimeString('mr-IN');
+            sec.innerHTML = `
+            <div class="location-badge">📍 मुलाचे Live Location</div>
+            <div id="locationText">
+                <strong>Latitude:</strong> ${data.lat.toFixed(6)}<br>
+                <strong>Longitude:</strong> ${data.lng.toFixed(6)}<br>
+                <strong>अचूकता:</strong> ±${Math.round(data.accuracy || 0)}m<br>
+                <strong>वेळ:</strong> ${time}
+            </div>
+            <a class="maps-btn" href="https://maps.google.com/?q=${data.lat},${data.lng}" target="_blank">
+                🗺️ Google Maps वर पाहा
+            </a>
+        `;
+        }
+
+        // ─── Snapshot capture ──────────────────────────────────────────
+        function captureSnapshot(video) {
+            try {
+                const c = document.createElement('canvas');
+                c.width = video.videoWidth || 320;
+                c.height = video.videoHeight || 240;
+                c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+                addSnapshot(c.toDataURL('image/jpeg', 0.6));
+            } catch (e) { }
+        }
+
+        function addSnapshot(dataUrl) {
+            const grid = document.getElementById('snapGrid');
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.title = new Date().toLocaleTimeString();
+            grid.prepend(img);
+            // Keep max 9
+            while (grid.children.length > 9) grid.removeChild(grid.lastChild);
+        }
+
+        // ─── Session controls ──────────────────────────────────────────
+        function refreshSession() {
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            endLiveView();
+            document.getElementById('qrCanvas').style.display = 'none';
+            document.getElementById('qrPlaceholder').style.display = 'flex';
+            document.getElementById('qrPlaceholder').innerHTML = '<span class="icon">⏳</span><span>नवीन Session तयार होत आहे...</span>';
+            document.getElementById('sessionDisplay').style.display = 'none';
+            document.getElementById('refreshBtn').style.display = 'none';
+            document.getElementById('disconnectBtn').style.display = 'none';
+            setStatus('waiting', 'नवीन Session तयार होत आहे...');
+            setTimeout(initPeer, 500);
+        }
+
+        function disconnectChild() {
+            if (mediaConn) { mediaConn.close(); mediaConn = null; }
+            if (conn) { conn.close(); conn = null; }
+            endLiveView();
+            setStatus('waiting', 'Connection बंद केले. नवीन QR Generate करा.');
+            document.getElementById('disconnectBtn').style.display = 'none';
+            document.getElementById('refreshBtn').style.display = 'flex';
+            showToast('🔌 Connection बंद केले.');
+        }
+
+        // ─── UI helpers ────────────────────────────────────────────────
+        function setStatus(type, text) {
+            const dot = document.getElementById('statusDot');
+            const txt = document.getElementById('statusText');
+            dot.className = 'status-dot ' + type;
+            txt.textContent = text;
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        // ─── Remote Triggers ──────────────────────────────────────────
+        function triggerSiren(active) {
+            if (!conn || !conn.open) {
+                showToast(currentLang === 'en' ? 'Child not connected' : 'मूल कनेक्टेड नाही');
+                return;
+            }
+            conn.send({ type: active ? 'siren:start' : 'siren:stop' });
+            if (active) {
+                showToast(currentLang === 'en' ? '🚨 Siren active on child phone' : '🚨 मुलाच्या फोनवर सायरन वाजत आहे!');
+            }
+        }
+
+        // ─── Start ────────────────────────────────────────────────────
+        window.addEventListener('load', () => {
+            const savedLang = localStorage.getItem('rakshak_lang');
+            if (savedLang) currentLang = savedLang;
+
+            applyLanguage();
+            setTimeout(initPeer, 500);
+        });
+    </script>
+</body>
+
+</html>
