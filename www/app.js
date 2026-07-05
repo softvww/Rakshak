@@ -660,16 +660,46 @@ function handleShakeMotion(event) {
 // LIVE LOCATION SHARE via WhatsApp
 // ============================================================
 
-function buildLocationMessage(contactName) {
+async function getNearestPoliceText(lat, lng) {
+    try {
+        const query = `[out:json][timeout:5];(node["amenity"="police"](around:5000,${lat},${lng});way["amenity"="police"](around:5000,${lat},${lng}););out center 3;`;
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.elements && data.elements.length > 0) {
+            const sorted = data.elements.map(el => {
+                const eLat = el.lat || el.center?.lat;
+                const eLng = el.lon || el.center?.lon;
+                const dist = getDistanceKm(lat, lng, eLat, eLng);
+                return { ...el, dist };
+            }).sort((a, b) => a.dist - b.dist).slice(0, 2);
+
+            let txt = '';
+            sorted.forEach(st => {
+                const name = st.tags?.name || st.tags?.['name:en'] || 'Police Station';
+                const phone = st.tags?.phone || st.tags?.contact?.phone || 'Not available';
+                const distKm = st.dist < 1 ? Math.round(st.dist * 1000) + 'm' : st.dist.toFixed(1) + 'km';
+                txt += `- ${name} (${distKm})\n  📞 ${phone}\n`;
+            });
+            return txt;
+        }
+    } catch(e) { }
+    return "";
+}
+
+function buildLocationMessage(contactName, policeText = "") {
     const lat = currentCoordinates[0];
     const lng = currentCoordinates[1];
     const mapsLink = `https://maps.google.com/?q=${lat},${lng}`;
     const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
+    let pInfo = policeText ? `\n\n🚨 *Nearest Police Stations:*\n${policeText}` : '';
+
     if (currentLang === 'mr') {
-        return `🚨 *रक्षक - आणीबाणी अलर्ट!*\n\nनमस्कार ${contactName},\n\nहे संकटकालीन संदेश आहे! मुलाचे/मुलीचे *सध्याचे लाईव्ह स्थान* खालील लिंकवर पाहा:\n\n📍 *Google Maps लिंक:*\n${mapsLink}\n\n⏰ वेळ: ${time}\n\nकृपया ताबडतोब संपर्क करा किंवा पोलिसांना कळवा: *112*\n\n_Rakshak Safety App द्वारे पाठवले_`;
+        return `🚨 *रक्षक - आणीबाणी अलर्ट!*\n\nनमस्कार ${contactName},\n\nहे संकटकालीन संदेश आहे! मुलाचे/मुलीचे *सध्याचे लाईव्ह स्थान* खालील लिंकवर पाहा:\n\n📍 *Google Maps लिंक:*\n${mapsLink}${pInfo}\n\n⏰ वेळ: ${time}\n\nकृपया ताबडतोब संपर्क करा किंवा पोलिसांना कळवा: *112*\n\n_Rakshak Safety App द्वारे पाठवले_`;
     } else {
-        return `🚨 *RAKSHAK - EMERGENCY ALERT!*\n\nHello ${contactName},\n\nThis is an emergency message! View the *current live location* below:\n\n📍 *Google Maps Link:*\n${mapsLink}\n\n⏰ Time: ${time}\n\nPlease contact immediately or call Police: *112*\n\n_Sent via Rakshak Safety App_`;
+        return `🚨 *RAKSHAK - EMERGENCY ALERT!*\n\nHello ${contactName},\n\nThis is an emergency message! View the *current live location* below:\n\n📍 *Google Maps Link:*\n${mapsLink}${pInfo}\n\n⏰ Time: ${time}\n\nPlease contact immediately or call Police: *112*\n\n_Sent via Rakshak Safety App_`;
     }
 }
 
@@ -679,28 +709,27 @@ function shareLocationToAll() {
         return;
     }
 
-    // Get real location first, then open WhatsApp for each contact
-    navigator.geolocation.getCurrentPosition(pos => {
-        currentCoordinates = [pos.coords.latitude, pos.coords.longitude];
+    const processLocationShare = async (lat, lng) => {
+        currentCoordinates = [lat, lng];
+        const policeText = await getNearestPoliceText(lat, lng);
         guardianContacts.forEach((contact, idx) => {
-            setTimeout(() => {
-                shareLocationToOne(contact);
-            }, idx * 1200); // stagger 1.2s each to avoid popup blocking
+            setTimeout(() => shareLocationToOne(contact, policeText), idx * 1200);
         });
         showToast(
             currentLang === 'en' ? `Opening WhatsApp for ${guardianContacts.length} guardian(s)...` : `${guardianContacts.length} रक्षकांना WhatsApp उघडत आहे...`,
             "success"
         );
+    };
+
+    navigator.geolocation.getCurrentPosition(pos => {
+        processLocationShare(pos.coords.latitude, pos.coords.longitude);
     }, () => {
-        // fallback with existing coords
-        guardianContacts.forEach((contact, idx) => {
-            setTimeout(() => shareLocationToOne(contact), idx * 1200);
-        });
+        processLocationShare(currentCoordinates[0], currentCoordinates[1]);
     }, { enableHighAccuracy: true, timeout: 5000 });
 }
 
-function shareLocationToOne(contact) {
-    const msg = buildLocationMessage(contact.name);
+function shareLocationToOne(contact, policeText = "") {
+    const msg = buildLocationMessage(contact.name, typeof policeText === 'string' ? policeText : "");
     const phone = contact.phone.replace(/\D/g, ''); // digits only
 
     // Try WhatsApp first, fallback to SMS if WhatsApp not installed
@@ -753,7 +782,6 @@ function renderIndividualShareButtons() {
 
 // Called after SOS triggers — sends location to all guardians automatically
 function simulateEmergencyAlertSends() {
-    // Also auto-find police station on SOS
     findNearestPolice();
 
     if (guardianContacts.length === 0) {
@@ -761,20 +789,23 @@ function simulateEmergencyAlertSends() {
         return;
     }
 
-    navigator.geolocation.getCurrentPosition(pos => {
-        currentCoordinates = [pos.coords.latitude, pos.coords.longitude];
-        // Open WhatsApp for each contact sequentially
+    const processSOS = async (lat, lng) => {
+        currentCoordinates = [lat, lng];
+        const policeText = await getNearestPoliceText(lat, lng);
+        
         guardianContacts.forEach((contact, idx) => {
-            setTimeout(() => shareLocationToOne(contact), 800 + idx * 1500);
+            setTimeout(() => shareLocationToOne(contact, policeText), 800 + idx * 1500);
         });
         showToast(
             currentLang === 'en' ? `🚨 Live location sent to ${guardianContacts.length} guardian(s) via WhatsApp!` : `🚨 ${guardianContacts.length} रक्षकांना WhatsApp वर Live Location पाठवले!`,
             "success"
         );
+    };
+
+    navigator.geolocation.getCurrentPosition(pos => {
+        processSOS(pos.coords.latitude, pos.coords.longitude);
     }, () => {
-        guardianContacts.forEach((contact, idx) => {
-            setTimeout(() => shareLocationToOne(contact), 800 + idx * 1500);
-        });
+        processSOS(currentCoordinates[0], currentCoordinates[1]);
     }, { enableHighAccuracy: true, timeout: 5000 });
 }
 
