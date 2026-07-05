@@ -167,6 +167,27 @@
                     </div>
                 </div>
 
+                <!-- Shake-to-SOS Detector Switch -->
+                <div class="safety-card">
+                    <div class="detector-switch-row">
+                        <div class="switch-label-group">
+                            <h3 class="card-title" style="margin-bottom:0px">
+                                <i data-lucide="smartphone"></i> <span id="shakeTitle">Shake SOS Detector</span>
+                            </h3>
+                            <span class="switch-sublabel" id="shakeDesc">Shake phone hard to auto-trigger SOS & send
+                                alert to all guardians</span>
+                        </div>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="shakeDetectorToggle" onchange="toggleShakeDetector()">
+                            <span class="slider-switch red-mode"></span>
+                        </label>
+                    </div>
+                    <div id="shakeStatusBar"
+                        style="display:none; margin-top:10px; font-size:11px; color:var(--secondary); text-align:center; font-weight:600; letter-spacing:0.5px;">
+                        📳 SHAKE DETECTOR ACTIVE — SHAKE PHONE FOR SOS
+                    </div>
+                </div>
+
                 <!-- Parent Monitor Card -->
                 <div class="safety-card"
                     style="background: linear-gradient(135deg, rgba(8, 203, 255, 0.1), rgba(123, 47, 255, 0.1)); border-color: rgba(123, 47, 255, 0.3); border-width: 2px;">
@@ -191,6 +212,65 @@
                                 करा)</span>
                         </a>
                     </div>
+                </div>
+
+                <!-- Screen Time Limits & App Blocker Card (FlashGet Kids feature) -->
+                <div class="safety-card"
+                    style="background: linear-gradient(135deg, rgba(255, 171, 0, 0.1), transparent); border-color: rgba(255, 171, 0, 0.3); border-width: 2px;">
+                    <h3 class="card-title">
+                        <i data-lucide="clock"></i>
+                        <span>⌛ Screen Time & App Blocker</span>
+                    </h3>
+                    <p class="card-desc" style="margin-bottom:15px;">Advanced App limits (FlashGet Kids feature). Set
+                        daily timers and block addictive apps instantly.</p>
+
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; padding:10px; background:rgba(255,255,255,0.05); border-radius:10px; border: 1px solid var(--border);">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="font-size:18px;">📺</div>
+                                <div>
+                                    <div style="font-size:12px; font-weight:700; color:var(--text);">YouTube</div>
+                                    <div style="font-size:10px; color:var(--text-muted);">Daily Limit: 1 hr</div>
+                                </div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="showToast('YouTube Limit Active')">
+                                <span class="slider-switch red-mode"></span>
+                            </label>
+                        </div>
+
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; padding:10px; background:rgba(255,255,255,0.05); border-radius:10px; border: 1px solid var(--border);">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="font-size:18px;">🎮</div>
+                                <div>
+                                    <div style="font-size:12px; font-weight:700; color:var(--text);">Web Browser</div>
+                                    <div style="font-size:10px; color:var(--primary); font-weight:600;">BLOCKED</div>
+                                </div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" onchange="showToast('Browser Unblocked!')">
+                                <span class="slider-switch red-mode"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Quick Link to Video -->
+                <div class="safety-card"
+                    style="background: linear-gradient(135deg, rgba(255, 69, 58, 0.1), rgba(255, 159, 10, 0.1)); border-color: rgba(255, 69, 58, 0.3); border-width: 2px;">
+                    <h3 class="card-title">
+                        <i data-lucide="play-circle"></i>
+                        <span>🎬 Body Safety Video Demo</span>
+                    </h3>
+                    <p class="card-desc" style="margin-bottom:15px;">Check how the video works! Only the audio files
+                        will need to be replaced later.</p>
+                    <a href="rakshak_explainer_detailed.mp4" target="_blank" class="safety-btn"
+                        style="background: linear-gradient(135deg, #FF453A, #FF9F0A); color:white; display:flex; align-items:center; justify-content:center; gap:8px; padding:14px; border-radius:14px; text-decoration:none; font-weight:700;">
+                        ▶️ PLAY VIDEO FULLSCREEN
+                    </a>
                 </div>
 
                 <!-- Quick Action Safety Tools -->
@@ -342,14 +422,9 @@
 
                         <div
                             style="width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--card-border); background-color: #020617;">
-                            <video id="kidsVideoPlayer" style="width: 100%; display: block;" controls preload="metadata"
-                                poster="child_safety_poster.png">
-                                <source src="safety_video.mp4" type="video/mp4">
-                                <source
-                                    src="https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-happy-school-girl-43285-large.mp4"
-                                    type="video/mp4">
-                                Your browser does not support the HTML5 video tag.
-                            </video>
+                            <video id="kidsVideoPlayer" src="rakshak_explainer_detailed.mp4"
+                                style="width: 100%; height: 260px; border: none; border-radius: 15px; background: #000; display: block;"
+                                controls playsinline controlsList="nodownload"></video>
                         </div>
                     </div>
 

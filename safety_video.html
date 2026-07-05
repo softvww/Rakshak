@@ -4,9 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Good Touch & Bad Touch - Safety Video</title>
+    <title>Rakshak — Child Safety Video</title>
     <style>
-        * {
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Baloo+2:wght@700;800&display=swap');
+
+        *,
+        *::before,
+        *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -16,113 +20,270 @@
         html {
             width: 100%;
             height: 100%;
-            background: #000;
-            font-family: 'Segoe UI', sans-serif;
+            background: #0a0010;
+            font-family: 'Poppins', sans-serif;
             overflow: hidden;
             touch-action: manipulation;
         }
 
-        /* ── SLIDES ── */
-        #stage {
-            position: relative;
-            width: 100%;
-            height: 100%;
-         }
+        /* ══════ INTRO SPLASH ══════ */
+        #introScreen {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at 50% 30%, #3d006e 0%, #1a0040 40%, #05000f 100%);
+            text-align: center;
+            padding: 24px;
+        }
 
+        .intro-shield {
+            font-size: 72px;
+            line-height: 1;
+            filter: drop-shadow(0 0 30px #c84bff);
+            animation: floatShield 3s ease-in-out infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes floatShield {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .intro-logo {
+            font-family: 'Baloo 2', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff6bff, #c84bff, #7b2fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+        }
+
+        .intro-sub {
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 0.78rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .intro-title {
+            color: #fff;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .intro-mr {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 0.95rem;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .intro-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 32px;
+        }
+
+        .pill {
+            background: rgba(200, 75, 255, 0.18);
+            border: 1px solid rgba(200, 75, 255, 0.4);
+            color: #e0aaff;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 5px 14px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        #startBtn {
+            background: linear-gradient(135deg, #c84bff, #7b2fff);
+            border: none;
+            color: #fff;
+            font-size: 1.05rem;
+            font-weight: 700;
+            padding: 15px 48px;
+            border-radius: 50px;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            box-shadow: 0 8px 32px rgba(200, 75, 255, 0.5);
+            transition: transform 0.15s, box-shadow 0.15s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        #startBtn:active {
+            transform: scale(0.96);
+        }
+
+        .slide-count {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.72rem;
+            margin-top: 14px;
+            letter-spacing: 1px;
+        }
+
+        /* ══════ STAGE ══════ */
+        #stage {
+            position: absolute;
+            inset: 0;
+            background: #000;
+        }
+
+        /* ══════ SLIDES ══════ */
         .slide {
             position: absolute;
             inset: 0;
             opacity: 0;
-            transition: opacity 1.2s ease-in-out;
+            pointer-events: none;
+            transition: opacity 1s ease-in-out;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 20px 120px;
         }
 
         .slide.active {
             opacity: 1;
-            z-index: 2;
+            pointer-events: auto;
         }
 
+        /* ── Slide backgrounds ── */
         .slide-bg {
             position: absolute;
-            inset: -10%;
+            inset: 0;
             background-size: cover;
             background-position: center;
-            animation: none;
+            z-index: 0;
         }
 
-        .slide.active .slide-bg {
-            animation: kenBurns 8s ease-in-out forwards;
-        }
-
-        @keyframes kenBurns {
-            0% {
-                transform: scale(1.0) translate(0, 0);
-            }
-
-            50% {
-                transform: scale(1.08) translate(-2%, -1%);
-            }
-
-            100% {
-                transform: scale(1.12) translate(1%, 1%);
-            }
-        }
-
-        /* dark gradient overlay */
         .slide-bg::after {
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(to bottom,
-                    rgba(0, 0, 0, 0.15) 0%,
-                    rgba(0, 0, 0, 0.1) 50%,
-                    rgba(0, 0, 0, 0.75) 100%);
+            background: rgba(0, 0, 0, 0.55);
         }
 
-        /* ── SLIDE HEADER BADGE ── */
-        .slide-badge {
+        /* ── Animated background shapes ── */
+        .bg-circle {
             position: absolute;
-            top: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.25;
+            z-index: 0;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+            }
+        }
+
+        /* ── Main icon ── */
+        .slide-icon {
+            position: relative;
+            z-index: 2;
+            font-size: 80px;
+            line-height: 1;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.4));
+            opacity: 0;
+            transform: scale(0.6);
+            transition: opacity 0.6s 0.4s, transform 0.6s 0.4s;
+            margin-bottom: 16px;
+        }
+
+        .slide.active .slide-icon {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* ── Slide badge ── */
+        .slide-badge {
+            position: relative;
+            z-index: 2;
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             color: #fff;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 700;
             letter-spacing: 2px;
             text-transform: uppercase;
-            padding: 5px 16px;
+            padding: 4px 16px;
             border-radius: 20px;
-            z-index: 5;
+            margin-bottom: 14px;
             opacity: 0;
-            transition: opacity 0.8s 0.5s;
+            transition: opacity 0.6s 0.2s;
         }
 
         .slide.active .slide-badge {
             opacity: 1;
         }
 
-        /* ── SUBTITLE TEXT ── */
+        /* ── Slide heading ── */
+        .slide-heading {
+            position: relative;
+            z-index: 2;
+            color: #fff;
+            font-weight: 800;
+            text-align: center;
+            font-size: 1.65rem;
+            line-height: 1.2;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity 0.7s 0.6s, transform 0.7s 0.6s;
+            margin-bottom: 10px;
+        }
+
+        .slide.active .slide-heading {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── Subtitle box ── */
         .subtitle {
-            position: absolute;
-            bottom: 115px;
-            left: 16px;
-            right: 16px;
-            background: rgba(0, 0, 0, 0.72);
+            position: relative;
+            z-index: 2;
+            background: rgba(0, 0, 0, 0.68);
             backdrop-filter: blur(10px);
-            border-left: 4px solid #ffeb3b;
-            border-radius: 10px;
+            border-radius: 14px;
             padding: 14px 16px;
             color: #fff;
-            font-size: 1.05rem;
+            font-size: 0.95rem;
             line-height: 1.6;
-            font-weight: 600;
-            z-index: 5;
+            font-weight: 500;
+            text-align: center;
+            border-left: 4px solid var(--accent, #c84bff);
             opacity: 0;
             transform: translateY(12px);
-            transition: opacity 0.6s 0.8s, transform 0.6s 0.8s;
+            transition: opacity 0.7s 0.9s, transform 0.7s 0.9s;
         }
 
         .slide.active .subtitle {
@@ -132,106 +293,135 @@
 
         .subtitle .en {
             display: block;
-            font-size: 0.78rem;
-            font-weight: 400;
-            color: #ffeb3b;
-            margin-top: 6px;
-            letter-spacing: 0.3px;
-        }
-
-        /* ── PLAY SCREEN ── */
-        #playScreen {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #1a0030 0%, #0d001a 100%);
-            z-index: 20;
-        }
-
-        .play-logo {
-            font-size: 3.5rem;
-            margin-bottom: 12px;
-            filter: drop-shadow(0 4px 12px rgba(255, 100, 100, 0.5));
-        }
-
-        .play-title {
-            color: #fff;
-            font-size: 1.4rem;
-            font-weight: 800;
-            text-align: center;
-            letter-spacing: 1px;
-            margin-bottom: 6px;
-        }
-
-        .play-sub {
-            color: rgba(255, 255, 255, 0.55);
-            font-size: 0.85rem;
-            margin-bottom: 36px;
-            text-align: center;
-        }
-
-        #playBtn {
-            background: linear-gradient(135deg, #ff4757, #c0392b);
-            border: none;
-            color: #fff;
-            font-size: 1.15rem;
-            font-weight: 700;
-            padding: 16px 44px;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 6px 24px rgba(255, 71, 87, 0.5);
-            transition: transform 0.15s, box-shadow 0.15s;
-            letter-spacing: 0.5px;
-        }
-
-        #playBtn:active {
-            transform: scale(0.96);
-            box-shadow: 0 2px 12px rgba(255, 71, 87, 0.4);
-        }
-
-        .slide-count-label {
-            color: rgba(255, 255, 255, 0.4);
             font-size: 0.75rem;
-            margin-top: 18px;
-            letter-spacing: 1px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.55);
+            margin-top: 6px;
+            letter-spacing: 0.2px;
         }
 
-        /* ── VIDEO CONTROLS ── */
+        /* ── Detail pills row ── */
+        .details-row {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+            opacity: 0;
+            transition: opacity 0.7s 1.2s;
+        }
+
+        .slide.active .details-row {
+            opacity: 1;
+        }
+
+        .detail-pill {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* ══════ SLIDE THEMES ══════ */
+        /* S1: Rakshak Intro */
+        #s1 .slide-bg {
+            background: radial-gradient(ellipse at 50% 30%, #3d006e, #1a0040, #05000f);
+        }
+
+        #s1 {
+            --accent: #c84bff;
+        }
+
+        /* S2: Good Touch */
+        #s2 .slide-bg {
+            background: radial-gradient(ellipse at 40% 40%, #004d20, #002610, #001208);
+        }
+
+        #s2 {
+            --accent: #4caf50;
+        }
+
+        /* S3: Bad Touch */
+        #s3 .slide-bg {
+            background: radial-gradient(ellipse at 60% 40%, #5a0000, #2d0000, #100000);
+        }
+
+        #s3 {
+            --accent: #ff4757;
+        }
+
+        /* S4: Body Belongs To You */
+        #s4 .slide-bg {
+            background: radial-gradient(ellipse at 50% 50%, #0a2a5c, #051228, #010812);
+        }
+
+        #s4 {
+            --accent: #4da6ff;
+        }
+
+        /* S5: Stranger Danger */
+        #s5 .slide-bg {
+            background: radial-gradient(ellipse at 40% 40%, #5c3a00, #2d1a00, #100800);
+        }
+
+        #s5 {
+            --accent: #ff9800;
+        }
+
+        /* S6: Speak Up */
+        #s6 .slide-bg {
+            background: radial-gradient(ellipse at 50% 30%, #1a0040, #0a002a, #020008);
+        }
+
+        #s6 {
+            --accent: #e040fb;
+        }
+
+        /* S7: Rakshak Closing */
+        #s7 .slide-bg {
+            background: radial-gradient(ellipse at 50% 50%, #003344, #001522, #01080f);
+        }
+
+        #s7 {
+            --accent: #00d4ff;
+        }
+
+        /* ══════ CONTROLS ══════ */
         #controls {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 105px;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.88), transparent);
-            z-index: 10;
+            height: 110px;
+            z-index: 50;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.92), transparent);
             display: none;
             flex-direction: column;
             justify-content: flex-end;
-            padding: 0 14px 14px;
+            padding: 0 16px 16px;
         }
 
         #controls.visible {
             display: flex;
         }
 
-        /* progress bar */
         #progressWrap {
             width: 100%;
             height: 4px;
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 4px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             cursor: pointer;
-            position: relative;
         }
 
         #progressBar {
             height: 100%;
-            background: #ff4757;
+            background: linear-gradient(90deg, #c84bff, #7b2fff);
             border-radius: 4px;
             width: 0%;
             transition: width 0.3s linear;
@@ -247,21 +437,20 @@
             height: 12px;
             background: #fff;
             border-radius: 50%;
-            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 6px rgba(200, 75, 255, 0.8);
         }
 
-        /* controls row */
         .ctrl-row {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
         }
 
         .ctrl-btn {
             background: none;
             border: none;
             color: #fff;
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             cursor: pointer;
             padding: 4px;
             line-height: 1;
@@ -269,12 +458,12 @@
         }
 
         .ctrl-btn:active {
-            transform: scale(0.88);
+            transform: scale(0.85);
         }
 
         #timeDisplay {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.75rem;
             font-weight: 600;
             letter-spacing: 0.5px;
             flex: 1;
@@ -282,32 +471,32 @@
 
         .dots {
             display: flex;
-            gap: 6px;
+            gap: 5px;
         }
 
         .dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.3);
             transition: background 0.3s, transform 0.3s;
         }
 
         .dot.active {
-            background: #ff4757;
-            transform: scale(1.3);
+            background: #c84bff;
+            transform: scale(1.4);
         }
 
-        /* ── END SCREEN ── */
+        /* ══════ END SCREEN ══════ */
         #endScreen {
             position: absolute;
             inset: 0;
+            z-index: 80;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #003300, #001a00);
-            z-index: 20;
+            background: radial-gradient(ellipse at 50% 40%, #004d20, #001a0a, #000);
             text-align: center;
             padding: 30px;
         }
@@ -318,6 +507,20 @@
 
         .end-icon {
             font-size: 4rem;
+            margin-bottom: 16px;
+            animation: floatShield 3s ease-in-out infinite;
+        }
+
+        .end-badge {
+            background: rgba(76, 175, 80, 0.15);
+            border: 1px solid rgba(76, 175, 80, 0.4);
+            color: #81c784;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 16px;
+            border-radius: 20px;
             margin-bottom: 14px;
         }
 
@@ -329,299 +532,695 @@
         }
 
         .end-msg {
-            color: rgba(255, 255, 255, 0.75);
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 28px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .end-rules {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 16px 20px;
+            text-align: left;
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .end-rules div {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .end-rules div:last-child {
+            border-bottom: none;
         }
 
         #replayBtn {
             background: linear-gradient(135deg, #4caf50, #2e7d32);
             border: none;
             color: #fff;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 700;
             padding: 13px 36px;
             border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 4px 16px rgba(76, 175, 80, 0.4);
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+            font-family: 'Poppins', sans-serif;
         }
     </style>
 </head>
 
 <body>
 
-    <!-- PLAY SCREEN -->
-    <div id="playScreen">
-        <div class="play-logo">🛡️</div>
-        <div class="play-title">Body Safety Video</div>
-        <div class="play-sub">गुड टच आणि बॅड टच शिका</div>
-        <button id="playBtn">▶️ &nbsp; Video Play करा</button>
-        <div class="slide-count-label">5 Slides • Marathi Narration</div>
-    </div>
-
-    <!-- STAGE -->
-    <div id="stage">
-
-        <!-- Slide 1 -->
-        <div class="slide" id="s1">
-            <div class="slide-bg" style="background-image:url('hero_child.png')"></div>
-            <div class="slide-badge">🛡️ रक्षक सुरक्षा पाठ</div>
-            <div class="subtitle">
-                रक्षक ॲपमध्ये तुमचे स्वागत आहे! आज आपण एक खूप महत्त्वाची गोष्ट शिकणार आहोत...
-                <span class="en">Welcome! Today we learn something very important about body safety.</span>
-            </div>
-        </div>
-
-        <!-- Slide 2 -->
-        <div class="slide" id="s2">
-            <div class="slide-bg" style="background-image:url('good_touch.png')"></div>
-            <div class="slide-badge">✅ गुड टच</div>
-            <div class="subtitle">
-                जेव्हा आई-बाबा मिठी मारतात, मित्र हात मिळवतात — ते छान वाटते. याला म्हणतात <b style="color:#4caf50">गुड
-                    टच!</b>
-                <span class="en">Hugs from parents, hi-fives from friends — this is a <b>Good Touch</b>. It feels warm
-                    and safe.</span>
-            </div>
-        </div>
-
-        <!-- Slide 3 -->
-        <div class="slide" id="s3">
-            <div class="slide-bg" style="background-image:url('bad_touch.png')"></div>
-            <div class="slide-badge">🚫 बॅड टच</div>
-            <div class="subtitle">
-                जर कुणी असा स्पर्श केला ज्याने भीती वाटते — तो <b style="color:#ff4757">बॅड टच</b> आहे! जोरात
-                <b>"नाही!"</b> म्हणा!
-                <span class="en">If someone's touch makes you scared or uncomfortable — that is a <b>Bad Touch</b>.
-                    Shout <b>"No!"</b> loudly!</span>
-            </div>
-        </div>
-
-        <!-- Slide 4 -->
-        <div class="slide" id="s4">
-            <div class="slide-bg" style="background-image:url('child_safety_poster.png')"></div>
-            <div class="slide-badge">📢 सांगा आणि सुरक्षित राहा</div>
-            <div class="subtitle">
-                बॅड टच झाल्यास लगेच पळा आणि आई-बाबा किंवा शिक्षकांना सांगा. तुम्ही एकटे नाही आहात!
-                <span class="en">Run away and tell a trusted adult immediately. You are never alone — Rakshak is
-                    watching over you!</span>
-            </div>
-        </div>
-
-        <!-- Slide 5 -->
-        <div class="slide" id="s5">
-            <div class="slide-bg" style="background-image:url('safe_parents.png')"></div>
-            <div class="slide-badge">💪 तुम्ही सुरक्षित आहात</div>
-            <div class="subtitle">
-                रक्षक ॲपमुळे आई-बाबा नेहमी तुमच्यासोबत आहेत. तुम्ही जेव्हाही बोलाल, ते ऐकतील!
-                <span class="en">With Rakshak App, your parents are always with you. Speak up — they will always listen
-                    and protect you!</span>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- VIDEO CONTROLS -->
-    <div id="controls">
-        <div id="progressWrap">
-            <div id="progressBar"></div>
-        </div>
-        <div class="ctrl-row">
-            <button class="ctrl-btn" id="ppBtn">⏸</button>
-            <div id="timeDisplay">0:00 / 0:40</div>
-            <div class="dots">
-                <div class="dot active" id="d0"></div>
-                <div class="dot" id="d1"></div>
-                <div class="dot" id="d2"></div>
-                <div class="dot" id="d3"></div>
-                <div class="dot" id="d4"></div>
-            </div>
-            <button class="ctrl-btn" id="fsBtn">⛶</button>
-        </div>
-    </div>
-
-    <!-- END SCREEN -->
-    <div id="endScreen">
-        <div class="end-icon">🌟</div>
-        <div class="end-title">शाब्बास! तुम्ही शिकलात!</div>
-        <div class="end-msg">
-            आता तुम्हाला माहीत आहे गुड टच आणि बॅड टच म्हणजे काय.<br>
-            कधीही बॅड टच झाल्यास लगेच सांगा!<br><br>
-            <span style="color:#ffeb3b">Always speak up. You are Brave! 💪</span>
-        </div>
-        <button id="replayBtn">🔄 &nbsp; पुन्हा पाहा</button>
-    </div>
-
-    <script>
-        const SLIDES = 5;
-        const SLIDE_DURATION = 8000; // 8s per slide
-        const TOTAL_DURATION = SLIDES * SLIDE_DURATION;
-
-        const narration = [
-            "रक्षक ॲपमध्ये तुमचे स्वागत आहे! आज आपण एक खूप महत्त्वाची गोष्ट शिकणार आहोत. आपल्या शरीराची सुरक्षा.",
-            "जेव्हा आई किंवा बाबा तुम्हाला मिठी मारतात, किंवा मित्र हात मिळवतात, तेव्हा छान वाटते. याला म्हणतात गुड टच!",
-            "पण जर कुणी असा स्पर्श केला ज्याने तुम्हाला भीती वाटते किंवा अस्वस्थ वाटते, तर तो बॅड टच आहे! लगेच जोरात नाही म्हणा!",
-            "बॅड टच झाल्यास लगेच पळून जा आणि आपल्या आई बाबा किंवा शिक्षकांना सांगा. तुम्ही एकटे नाही आहात!",
-            "रक्षक ॲपमुळे आई बाबा नेहमी तुमच्यासोबत आहेत. कधीही काही झाले तरी बोला, ते नक्की ऐकतील!"
-        ];
-
-        let current = 0;
-        let playing = false;
-        let startTime = 0;
-        let elapsed = 0;
-        let rafId = null;
-        let slideTimer = null;
-
-        const slides = Array.from({ length: SLIDES }, (_, i) => document.getElementById(`s${i + 1}`));
-        const dots = Array.from({ length: SLIDES }, (_, i) => document.getElementById(`d${i}`));
-        const progressBar = document.getElementById('progressBar');
-        const timeDisplay = document.getElementById('timeDisplay');
-        const controls = document.getElementById('controls');
-        const endScreen = document.getElementById('endScreen');
-        const playScreen = document.getElementById('playScreen');
-        const ppBtn = document.getElementById('ppBtn');
-
-        function formatTime(ms) {
-            const s = Math.floor(ms / 1000);
-            return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    <!-- ══ INTRO SPLASH ══ -->
+    <div id="introScreen">
+        background: radial-gradient(ellipse at 50% 50%, #003344, #001522, #01080f);
         }
 
-        function showSlide(idx) {
-            slides.forEach(s => s.classList.remove('active'));
-            dots.forEach(d => d.classList.remove('active'));
-            if (idx < SLIDES) {
-                slides[idx].classList.add('active');
-                dots[idx].classList.add('active');
-            }
+        #s7 {
+        --accent: #00d4ff;
         }
 
-        function speak(text, onEnd) {
-            if (!('speechSynthesis' in window)) { onEnd && setTimeout(onEnd, SLIDE_DURATION); return; }
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'mr-IN';
-            u.rate = 0.88;
-            u.pitch = 1.05;
-            u.volume = 1;
-            u.onend = () => onEnd && setTimeout(onEnd, 600);
-            u.onerror = () => onEnd && setTimeout(onEnd, SLIDE_DURATION);
-            window.speechSynthesis.speak(u);
+        /* ══════ CONTROLS ══════ */
+        #controls {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 110px;
+        z-index: 50;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.92), transparent);
+        display: none;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 0 16px 16px;
         }
 
-        function tick() {
-            if (!playing) return;
-            const now = Date.now();
-            elapsed = (now - startTime);
-            const totalElapsed = current * SLIDE_DURATION + Math.min(elapsed, SLIDE_DURATION);
-            const pct = Math.min(totalElapsed / TOTAL_DURATION * 100, 100);
-            progressBar.style.width = pct + '%';
-            timeDisplay.textContent = `${formatTime(totalElapsed)} / ${formatTime(TOTAL_DURATION)}`;
-            rafId = requestAnimationFrame(tick);
+        #controls.visible {
+        display: flex;
         }
 
-        function playSlide(idx) {
-            if (idx >= SLIDES) { finish(); return; }
-            current = idx;
-            startTime = Date.now();
-            elapsed = 0;
-            showSlide(idx);
-            speak(narration[idx], () => {
-                if (playing) playSlide(idx + 1);
-            });
+        #progressWrap {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        margin-bottom: 12px;
+        cursor: pointer;
         }
 
-        function start() {
-            playScreen.style.display = 'none';
-            controls.classList.add('visible');
-            playing = true;
-            startTime = Date.now();
-            rafId = requestAnimationFrame(tick);
-            playSlide(0);
+        #progressBar {
+        height: 100%;
+        background: linear-gradient(90deg, #c84bff, #7b2fff);
+        border-radius: 4px;
+        width: 0%;
+        transition: width 0.3s linear;
+        position: relative;
         }
 
-        function togglePause() {
-            if (playing) {
-                playing = false;
-                window.speechSynthesis.pause();
-                cancelAnimationFrame(rafId);
-                ppBtn.textContent = '▶';
-            } else {
-                playing = true;
-                window.speechSynthesis.resume();
-                startTime = Date.now() - elapsed;
-                rafId = requestAnimationFrame(tick);
-                ppBtn.textContent = '⏸';
-                // If speech ended, advance
-                if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
-                    playSlide(current + 1);
+        #progressBar::after {
+        content: '';
+        position: absolute;
+        right: -5px;
+        top: -4px;
+        width: 12px;
+        height: 12px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 6px rgba(200, 75, 255, 0.8);
+        }
+
+        .ctrl-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        }
+
+        .ctrl-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 1.3rem;
+        cursor: pointer;
+        padding: 4px;
+        line-height: 1;
+        transition: transform 0.1s;
+        }
+
+        .ctrl-btn:active {
+        transform: scale(0.85);
+        }
+
+        #timeDisplay {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        flex: 1;
+        }
+
+        .dots {
+        display: flex;
+        gap: 5px;
+        }
+
+        .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transition: background 0.3s, transform 0.3s;
+        }
+
+        .dot.active {
+        background: #c84bff;
+        transform: scale(1.4);
+        }
+
+        /* ══════ END SCREEN ══════ */
+        #endScreen {
+        position: absolute;
+        inset: 0;
+        z-index: 80;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(ellipse at 50% 40%, #004d20, #001a0a, #000);
+        text-align: center;
+        padding: 30px;
+        }
+
+        #endScreen.show {
+        display: flex;
+        }
+
+        .end-icon {
+        font-size: 4rem;
+        margin-bottom: 16px;
+        animation: floatShield 3s ease-in-out infinite;
+        }
+
+        .end-badge {
+        background: rgba(76, 175, 80, 0.15);
+        border: 1px solid rgba(76, 175, 80, 0.4);
+        color: #81c784;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 4px 16px;
+        border-radius: 20px;
+        margin-bottom: 14px;
+        }
+
+        .end-title {
+        color: #4caf50;
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin-bottom: 10px;
+        }
+
+        .end-msg {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+        line-height: 1.7;
+        margin-bottom: 24px;
+        }
+
+        .end-rules {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 16px 20px;
+        text-align: left;
+        margin-bottom: 24px;
+        width: 100%;
+        }
+
+        .end-rules div {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .end-rules div:last-child {
+        border-bottom: none;
+        }
+
+        #replayBtn {
+        background: linear-gradient(135deg, #4caf50, #2e7d32);
+        border: none;
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 700;
+        padding: 13px 36px;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+        font-family: 'Poppins', sans-serif;
+        }
+        </style>
+        </head>
+
+        <body>
+
+            <!-- ══ INTRO SPLASH ══ -->
+            <div id="introScreen">
+                <div class="intro-shield">🛡️</div>
+                <div class="intro-logo">RAKSHAK</div>
+                <div class="intro-sub">रक्षक — तुमचा सुरक्षा साथीदार</div>
+                <div class="intro-title">बाल सुरक्षा व्हिडिओ</div>
+                <div class="intro-mr">मुलांसाठी एक महत्त्वाचा सुरक्षा पाठ —<br>आपल्या शरीराची सुरक्षा कशी करावी?</div>
+                <div class="intro-pills">
+                    <span class="pill">✅ गुड टच</span>
+                    <span class="pill">🚫 बॅड टच</span>
+                    <span class="pill">🧍 माझे शरीर माझे आहे</span>
+                    <span class="pill">🚨 अनोळखी व्यक्ती</span>
+                    <span class="pill">📢 सांगा!</span>
+                </div>
+                <div style="display: flex; gap: 15px; margin-bottom: 24px;">
+                    <button id="langMarathi" class="lang-btn active"
+                        style="background: rgba(200, 75, 255, 0.4); border: 2px solid #c84bff; color: white; padding: 10px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; transition: 0.2s;">मराठी
+                        (Marathi)</button>
+                    <button id="langEnglish" class="lang-btn"
+                        style="background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.15); color: white; padding: 10px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; transition: 0.2s;">English</button>
+                </div>
+                <button id="startBtn">▶️ &nbsp; Video सुरू करा</button>
+                <div class="slide-count">7 Slides • मराठी + English • Voice Narration</div>
+            </div>
+
+            <!-- ══ STAGE ══ -->
+            <div id="stage">
+
+                <!-- Slide 1: Rakshak Welcome -->
+                <div class="slide" id="s1">
+                    <div class="slide-bg"></div>
+                    <div class="bg-circle" style="width:300px;height:300px;background:#c84bff;top:-80px;right:-80px;">
+                    </div>
+                    <div class="bg-circle"
+                        style="width:200px;height:200px;background:#7b2fff;bottom:100px;left:-60px;animation-delay:2s;">
+                    </div>
+                    <div class="slide-icon">🛡️</div>
+                    <div class="slide-badge">🛡️ रक्षक — सुरक्षा पाठ</div>
+                    <div class="slide-heading">रक्षक ॲपमध्ये<br>तुमचे स्वागत आहे!</div>
+                    <div class="subtitle">
+                        आज आपण एक खूप महत्त्वाची गोष्ट शिकणार आहोत — आपल्या शरीराची सुरक्षा कशी करावी?
+                        <span class="en">Today we learn something very important — how to keep your body safe!</span>
+                    </div>
+                    <div class="details-row">
+                        <span class="detail-pill">📱 रक्षक ॲप</span>
+                        <span class="detail-pill">👦 मुले-मुली</span>
+                        <span class="detail-pill">🏫 शाळा सुरक्षा</span>
+                    </div>
+                </div>
+
+                <!-- Slide 2: Good Touch -->
+                <div class="slide" id="s2">
+                    <div class="slide-bg"></div>
+                    <div class="bg-circle" style="width:250px;height:250px;background:#4caf50;top:-60px;right:-60px;">
+                    </div>
+                    <div class="bg-circle"
+                        style="width:180px;height:180px;background:#2e7d32;bottom:120px;left:-50px;animation-delay:1.5s;">
+                    </div>
+                    <div class="slide-icon">✅</div>
+                    <div class="slide-badge">✅ गुड टच (Good Touch)</div>
+                    <div class="slide-heading" style="color:#a5d6a7;">चांगला स्पर्श म्हणजे काय?</div>
+                    <div class="subtitle" style="--accent:#4caf50">
+                        जेव्हा <b style="color:#a5d6a7;">आई-बाबा मिठी मारतात</b>, मित्र टाळी देतात, शिक्षक शाबासकी देतात
+                        — हे
+                        सगळे <b style="color:#4caf50">गुड टच</b> आहे. यामुळे सुरक्षित वाटते!
+                        <span class="en">A hug from parents, a hi-five from friends, a pat on the back from teachers —
+                            these are
+                            <b>Good Touches</b>. They feel warm and safe.</span>
+                    </div>
+                    <div class="details-row">
+                        <span class="detail-pill">🤗 आई-बाबांची मिठी</span>
+                        <span class="detail-pill">🤝 मित्राची टाळी</span>
+                        <span class="detail-pill">👩‍🏫 शिक्षकांची शाबासकी</span>
+                    </div>
+                </div>
+
+                <!-- Slide 3: Bad Touch -->
+                <div class="slide" id="s3">
+                    <div class="slide-bg"></div>
+                    <div class="bg-circle" style="width:280px;height:280px;background:#ff4757;top:-70px;right:-70px;">
+                    </div>
+                    <div class="bg-circle"
+                        style="width:200px;height:200px;background:#c0392b;bottom:100px;left:-60px;animation-delay:2s;">
+                    </div>
+                    <div class="slide-icon">🚫</div>
+                    <div class="slide-badge">🚫 बॅड टच (Bad Touch)</div>
+                    <div class="slide-heading" style="color:#ff8a80;">वाईट स्पर्श म्हणजे काय?</div>
+                    <div class="subtitle" style="--accent:#ff4757">
+                        जर कुणाचा स्पर्श केल्यावर <b style="color:#ff6b6b;">भीती वाटते, अस्वस्थ वाटते</b> किंवा ते गुपित
+                        ठेवायला
+                        सांगतात — तो <b style="color:#ff4757">बॅड टच</b> आहे! लगेच जोरात <b>"नाही!"</b> म्हणा!
+                        <span class="en">If a touch makes you feel scared, uncomfortable, or you're told to keep it
+                            secret —
+                            that is a <b>Bad Touch</b>. Shout <b>"No!"</b> loudly and run away!</span>
+                    </div>
+                    <div class="details-row">
+                        <span class="detail-pill">😨 भीती वाटते</span>
+                        <span class="detail-pill">🤫 गुपित सांगतात</span>
+                        <span class="detail-pill">😟 अस्वस्थ वाटते</span>
+                    </div>
+                </div>
+
+                <!-- Slide 4: Body Belongs To You -->
+                <div class="slide" id="s4">
+                    <div class="slide-bg"></div>
+                    <div class="bg-circle" style="width:260px;height:260px;background:#1565c0;top:-60px;right:-60px;">
+                    </div>
+                    <div class="bg-circle"
+                        style="width:200px;height:200px;background:#0d47a1;bottom:120px;left:-50px;animation-delay:2.5s;">
+                    </div>
+                    <div class="slide-icon">🧍</div>
+                    <div class="slide-badge">💪 माझे शरीर माझे आहे!</div>
+                    <div class="slide-heading" style="color:#90caf9;">तुमचे शरीर फक्त<br>तुमचे आहे!</div>
+                    <div class="subtitle" style="--accent:#4da6ff">
+                        तुमच्या शरीराचे कपड्याने झाकलेले भाग — ते फक्त <b style="color:#90caf9;">तुमचे</b> आहेत! कुणीही
+                        त्यांना
+                        स्पर्श करण्याचा अधिकार नाही. हे लक्षात ठेवा — <b style="color:#4da6ff">माझे शरीर माझे!</b>
+                        <span class="en">The parts covered by your swimsuit belong only to <b>YOU</b>. No one has the
+                            right to
+                            touch them without your permission. Remember: <b>My Body, My Rules!</b></span>
+                    </div>
+                    <div class="details-row">
+                        <span class="detail-pill">🚫 कुणालाही परवानगी नाही</span>
+                        <span class="detail-pill">💪 मी ठरवतो/ठरवते</span>
+                    </div>
+                </div>
+
+                <!-- Slide 5: Stranger Danger -->
+                <div class="slide" id="s5">
+                    <div class="slide-bg"></div>
+                    <div class="bg-circle" style="width:260px;height:260px;background:#e65100;top:-60px;right:-60px;">
+                    </div>
+                    <div class="bg-circle"
+                        style="width:200px;height:200px;background:#bf360c;bottom:120px;left:-50px;animation-delay:1.8s;">
+                    </div>
+                    <div class="slide-icon">🚨</div>
+                    <div class="slide-badge">⚠️ अनोळखी व्यक्ती</div>
+                    <div class="slide-heading" style="color:#ffcc80;">अनोळखी व्यक्तींपासून<br>सावध राहा!</div>
+                    <div class="subtitle" style="--accent:#ff9800">
+                        अनोळखी व्यक्ती <b style="color:#ffcc80;">चॉकलेट, खेळणी किंवा लिफ्ट</b> ऑफर करत असतील तर —
+                        <b>नाही
+                            म्हणा!</b> त्यांच्यासोबत जाऊ नका. लगेच आई-बाबा किंवा शिक्षकांना सांगा!
+                        <span class="en">If a stranger offers chocolates, toys, or a ride — say <b>No!</b> Never go with
+                            them.
+                            Run to a trusted adult immediately!</span>
+                    </div>
+                    <div class="details-row">
+                        <span class="detail-pill">🍫 चॉकलेट नको</span>
+                        <span class="detail-pill">🚗 लिफ्ट नको</span>
+                        <span class="detail-pill">🏃 पळून जा!</span>
+                    </div>
+                </div>
+
+                <!-- Slide 6: Speak Up -->
+                <div class="slide" id="s6">
+                    <div class="slide-bg"></div>
+                    <div class="bg-circle" style="width:260px;height:260px;background:#7b1fa2;top:-60px;right:-60px;">
+                    </div>
+                    <div class="bg-circle"
+                        style="width:200px;height:200px;background:#4a148c;bottom:120px;left:-50px;animation-delay:2.2s;">
+                    </div>
+                    <div class="slide-icon">📢</div>
+                    <div class="slide-badge">💬 सांगा! बोला!</div>
+                    <div class="slide-heading" style="color:#ce93d8;">काय झाले तरी <br>सांगायला विसरू नका!</div>
+                    <div class="subtitle" style="--accent:#e040fb">
+                        जर कुणी बॅड टच केला किंवा चुकीचे काहीही केले — <b style="color:#ce93d8;">घाबरू नका!</b> लगेच
+                        <b>आई,
+                            बाबा, शिक्षक किंवा रक्षक ॲप</b> वर सांगा. तुमची चूक नाही!
+                        <span class="en">If anyone does something wrong — <b>do not be afraid!</b> Tell your parents,
+                            teachers,
+                            or use the Rakshak App. <b>It is never your fault!</b></span>
+                    </div>
+                    <div class="details-row">
+                        <span class="detail-pill">👨‍👩‍👧 आई-बाबांना सांगा</span>
+                        <span class="detail-pill">👩‍🏫 शिक्षकांना सांगा</span>
+                        <span class="detail-pill">📱 रक्षक ॲप</span>
+                    </div>
+                </div>
+
+                <!-- Slide 7: Rakshak Closing -->
+                <div class="slide" id="s7">
+                    <div class="slide-bg"></div>
+                    <div class="bg-circle" style="width:280px;height:280px;background:#006064;top:-60px;right:-60px;">
+                    </div>
+                    <div class="bg-circle"
+                        style="width:200px;height:200px;background:#00838f;bottom:100px;left:-50px;animation-delay:1.5s;">
+                    </div>
+                    <div class="slide-icon">🛡️</div>
+                    <div class="slide-badge">💙 रक्षक — तुमच्यासोबत आहे</div>
+                    <div class="slide-heading" style="color:#80deea;">रक्षक ॲप नेहमी<br>तुमच्यासोबत आहे!</div>
+                    <div class="subtitle" style="--accent:#00d4ff">
+                        रक्षक ॲपमुळे <b style="color:#80deea;">आई-बाबा नेहमी तुमच्यासोबत</b> आहेत. SOS बटण दाबा — मदत
+                        लगेच येईल!
+                        तुम्ही एकटे नाही आहात!
+                        <span class="en">With the Rakshak App, <b>your parents are always with you</b>. Press SOS — help
+                            arrives
+                            instantly! You are never alone!</span>
+                    </div>
+                    <div class="details-row">
+                        <span class="detail-pill">🚨 SOS बटण</span>
+                        <span class="detail-pill">📍 Live Location</span>
+                        <span class="detail-pill">📳 Shake Detector</span>
+                    </div>
+                </div>
+
+            </div><!-- /stage -->
+
+            <!-- ══ CONTROLS ══ -->
+            <div id="controls">
+                <div id="progressWrap">
+                    <div id="progressBar"></div>
+                </div>
+                <div class="ctrl-row">
+                    <button class="ctrl-btn" id="ppBtn">⏸</button>
+                    <div id="timeDisplay">0:00 / 1:10</div>
+                    <div class="dots">
+                        <div class="dot active" id="d0"></div>
+                        <div class="dot" id="d1"></div>
+                        <div class="dot" id="d2"></div>
+                        <div class="dot" id="d3"></div>
+                        <div class="dot" id="d4"></div>
+                        <div class="dot" id="d5"></div>
+                        <div class="dot" id="d6"></div>
+                    </div>
+                    <button class="ctrl-btn" id="fsBtn">⛶</button>
+                </div>
+            </div>
+
+            <!-- ══ END SCREEN ══ -->
+            <div id="endScreen">
+                <div class="end-icon">🌟</div>
+                <div class="end-badge">🏆 सुरक्षा चॅम्पियन</div>
+                <div class="end-title">शाब्बास! तुम्ही शिकलात!</div>
+                <div class="end-msg">
+                    आता तुम्हाला माहीत आहे की आपल्या शरीराची सुरक्षा कशी करायची.<br>
+                    <span style="color:#ffeb3b;">हे नेहमी लक्षात ठेवा:</span>
+                </div>
+                <div class="end-rules">
+                    <div>✅ गुड टच — सुरक्षित, छान वाटते</div>
+                    <div>🚫 बॅड टच — लगेच "नाही!" म्हणा</div>
+                    <div>🧍 माझे शरीर फक्त माझे आहे</div>
+                    <div>🚨 अनोळखी व्यक्तींपासून दूर राहा</div>
+                    <div>📢 काहीही झाले तरी सांगा!</div>
+                    <div>🛡️ रक्षक ॲप नेहमी सोबत आहे</div>
+                </div>
+                <button id="replayBtn">🔄 &nbsp; पुन्हा पाहा</button>
+            </div>
+
+            <script>
+                const SLIDES = 7;
+                const SLIDE_DURATION = 28000; // 28s per slide
+                const TOTAL_DURATION = SLIDES * SLIDE_DURATION;
+
+                const narration = [
+                    "रक्षक ॲपमध्ये तुमचे स्वागत आहे! रक्षक म्हणजे तुमचा अगदी जवळचा सुरक्षा साथीदार आणि तुमचा खरा मित्र. आज आपण एक खूप महत्त्वाची आणि खास गोष्ट शिकणार आहोत, ती म्हणजे आपल्या शरीराची सुरक्षा कशी करावी आणि आपण स्वतःला कायम कसे सुरक्षित ठेवावे.",
+                    "सर्वात आधी समजून घेऊया, गुड टच म्हणजे काय? जेव्हा तुमचे आई-बाबा तुम्हाला प्रेमाने मिठी मारतात, तुमचे मित्र तुम्हाला आनंदाने टाळी देतात, किंवा तुम्ही काही चांगले काम केल्यावर शिक्षक तुमच्या पाठीवर मायेने शाबासकी देतात — हे सगळे गुड टच आहेत! अशा प्रकारच्या स्पर्शामुळे तुम्हाला एकदम सुरक्षित, आरामदायक आणि खूप आनंदी वाटते.",
+                    "आता बॅड टच म्हणजे काय ते समजून घेऊया. जर कोणत्याही व्यक्तीने तुम्हाला असा स्पर्श केला ज्यामुळे तुम्हाला अचानक भीती वाटायला लागली, अस्वस्थ वाटले किंवा तुम्हाला रडावेसे वाटले, आणि जर ती व्यक्ती तुम्हाला 'हे कोणालाही सांगू नको, हे आपले गुपित आहे' असे सांगत असेल — तर तो नक्कीच बॅड टच आहे! अशा वेळी अजिबात घाबरू नका, लगेच जोरात 'नाही!' म्हणा आणि तिथून सुरक्षित ठिकाणी पळून जा!",
+                    "माझे शरीर फक्त माझे आहे! हे वाक्य नेहमी लक्षात ठेवा. तुमच्या शरीराचे जे भाग कपड्याने झाकलेले असतात, ते अत्यंत खाजगी असतात आणि ते फक्त तुमचे आहेत. जगातील कोणत्याही व्यक्तीला तुमच्या परवानगीशिवाय त्यांना स्पर्श करण्याचा कोणताही अधिकार नाही. नेहमी अभिमानाने लक्षात ठेवा: माझे शरीर, माझे नियम!",
+                    "अनोळखी व्यक्तींपासून नेहमी सावध राहा! जर कोणतीही अनोळखी व्यक्ती, ज्यांना तुम्ही ओळखत नाही, ती तुम्हाला बाहेर चॉकलेट, आकर्षक खेळणी किंवा लिफ्टची ऑफर करत असेल तर ठामपणे 'नाही' म्हणा! त्यांच्या आमिषाला बळी पडू नका किंवा त्यांच्यासोबत कधीही कुठेही जाऊ नका. अशी वेळ आल्यास तिथून पळून जा आणि लगेच आई-बाबांना किंवा शिक्षकांना जाऊन सर्व सांगा!",
+                    "सर्वात महत्त्वाचे म्हणजे, नेहमी सांगा आणि बोलायला शिका! जर कधी कोणी तुम्हाला बॅड टच केला किंवा तुम्हाला न आवडणारे काहीही चुकीचे केले, तर मनात कोणतीही भीती बाळगू नका! हे सर्व लगेच तुमचे आई, बाबा किंवा तुमच्या आवडत्या शिक्षकांना सांगा. लक्षात ठेवा, अशा घटनांमध्ये तुमची कधीही कोणतीही चूक नसते, तुम्ही तर अतिशय धाडसी मुले आहात!",
+                    "रक्षक ॲप या सगळ्या प्रवासात नेहमी तुमच्यासोबत आहे! रक्षक ॲपमुळे तुमचे आई-बाबा इंटरनेटच्या मदतीने नेहमी तुमच्यासोबत आणि सुरक्षिततेसाठी जोडलेले आहेत. जेव्हा कधी तुम्हाला धोका वाटेल तेव्हा ताबडतोब SOS बटण दाबा — मदत आणि सुरक्षितता अगदी लगेच तुमच्यापर्यंत पोहोचेल! लक्षात ठेवा, तुम्ही या जगात कधीही एकटे नाही आहात, रक्षक आणि तुमचे पालक कायम तुमच्या पाठीशी आहेत!"
+                ];
+
+                let currentLanguage = 'marathi';
+                let current = 0;
+                let playing = false;
+                let startTime = 0;
+                let elapsed = 0;
+                let rafId = null;
+
+                const slideEls = Array.from({ length: SLIDES }, (_, i) => document.getElementById(`s${i + 1}`));
+                const dots = Array.from({ length: SLIDES }, (_, i) => document.getElementById(`d${i}`));
+                const progressBar = document.getElementById('progressBar');
+                const timeDisplay = document.getElementById('timeDisplay');
+                const controls = document.getElementById('controls');
+                const endScreen = document.getElementById('endScreen');
+                const introScreen = document.getElementById('introScreen');
+                const ppBtn = document.getElementById('ppBtn');
+
+                function formatTime(ms) {
+                    const s = Math.floor(ms / 1000);
+                    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
                 }
-            }
-        }
 
-        function finish() {
-            playing = false;
-            window.speechSynthesis.cancel();
-            cancelAnimationFrame(rafId);
-            controls.classList.remove('visible');
-            progressBar.style.width = '100%';
-            slides.forEach(s => s.classList.remove('active'));
-            dots.forEach(d => d.classList.remove('active'));
-            setTimeout(() => { endScreen.classList.add('show'); }, 600);
-        }
+                function showSlide(idx) {
+                    slideEls.forEach(s => s.classList.remove('active'));
+                    dots.forEach(d => d.classList.remove('active'));
+                    if (idx < SLIDES) {
+                        slideEls[idx].classList.add('active');
+                        dots[idx].classList.add('active');
+                    }
+                }
 
-        function replay() {
-            endScreen.classList.remove('show');
-            progressBar.style.width = '0%';
-            current = 0;
-            elapsed = 0;
-            playing = true;
-            controls.classList.add('visible');
-            startTime = Date.now();
-            rafId = requestAnimationFrame(tick);
-            playSlide(0);
-            ppBtn.textContent = '⏸';
-        }
+                let currentAudio = null;
+                const bgmAudio = new Audio('bgm.mp3');
+                bgmAudio.loop = true;
+                bgmAudio.volume = 0.25;
 
-        // Fullscreen
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen && document.exitFullscreen();
-            }
-        }
+                function speak(idx, onEnd) {
+                    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
 
-        // Events
-        document.getElementById('playBtn').addEventListener('click', start);
-        ppBtn.addEventListener('click', togglePause);
-        document.getElementById('fsBtn').addEventListener('click', toggleFullscreen);
-        document.getElementById('replayBtn').addEventListener('click', replay);
+                    let audioFile = '';
+                    if (idx < 6) {
+                        const suffix = ['1st', '2nd', '3rd', '4th', '5th', '6th'][idx];
+                        if (currentLanguage === 'marathi') {
+                            audioFile = idx === 0 ? 'Marathi-1st Point.ogg' : `Marathi - ${suffix} Point.ogg`;
+                        } else {
+                            audioFile = `English - ${suffix} Point.ogg`;
+                        }
+                    }
 
-        // Tap stage to show/hide controls
-        document.getElementById('stage').addEventListener('click', () => {
-            if (playing || !playScreen.style.display) {
-                controls.classList.toggle('visible');
-            }
-        });
+                    if (audioFile) {
+                        currentAudio = new Audio(audioFile);
+                        currentAudio.play().catch(e => console.error(e));
+                        currentAudio.onended = () => { onEnd && setTimeout(onEnd, 500); };
+                        currentAudio.onerror = () => { onEnd && setTimeout(onEnd, SLIDE_DURATION); };
+                    } else {
+                        setTimeout(onEnd, SLIDE_DURATION);
+                    }
+                }
 
-        // Progress bar scrub (tap to jump)
-        document.getElementById('progressWrap').addEventListener('click', (e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const pct = (e.clientX - rect.left) / rect.width;
-            const targetSlide = Math.floor(pct * SLIDES);
-            window.speechSynthesis.cancel();
-            cancelAnimationFrame(rafId);
-            startTime = Date.now();
-            elapsed = 0;
-            if (playing) {
-                rafId = requestAnimationFrame(tick);
-                playSlide(Math.min(targetSlide, SLIDES - 1));
-            } else {
-                showSlide(Math.min(targetSlide, SLIDES - 1));
-            }
-        });
-    </script>
+                function tick() {
+                    if (!playing) return;
+                    const now = Date.now();
+                    elapsed = now - startTime;
+                    const totalElapsed = current * SLIDE_DURATION + Math.min(elapsed, SLIDE_DURATION);
+                    const pct = Math.min(totalElapsed / TOTAL_DURATION * 100, 100);
+                    progressBar.style.width = pct + '%';
+                    timeDisplay.textContent = `${formatTime(totalElapsed)} / ${formatTime(TOTAL_DURATION)}`;
+                    rafId = requestAnimationFrame(tick);
+                }
 
-</body>
+                function playSlide(idx) {
+                    if (idx >= SLIDES) { finish(); return; }
+                    current = idx;
+                    startTime = Date.now();
+                    elapsed = 0;
+                    showSlide(idx);
+                    speak(idx, () => {
+                        if (playing) playSlide(idx + 1);
+                    });
+                }
+
+                function start() {
+                    introScreen.style.display = 'none';
+                    controls.classList.add('visible');
+                    playing = true;
+                    startTime = Date.now();
+                    rafId = requestAnimationFrame(tick);
+
+                    bgmAudio.currentTime = 0;
+                    bgmAudio.play().catch(e => console.warn(e));
+
+                    playSlide(0);
+                }
+
+                function togglePause() {
+                    if (playing) {
+                        playing = false;
+                        if (currentAudio) currentAudio.pause();
+                        bgmAudio.pause();
+                        cancelAnimationFrame(rafId);
+                        ppBtn.textContent = '▶';
+                    } else {
+                        playing = true;
+                        if (currentAudio) currentAudio.play();
+                        bgmAudio.play();
+                        startTime = Date.now() - elapsed;
+                        rafId = requestAnimationFrame(tick);
+                        ppBtn.textContent = '⏸';
+                        if (!currentAudio || currentAudio.ended) {
+                            playSlide(current + 1);
+                        }
+                    }
+                }
+
+                function finish() {
+                    playing = false;
+                    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+                    bgmAudio.pause();
+                    cancelAnimationFrame(rafId);
+                    controls.classList.remove('visible');
+                    progressBar.style.width = '100%';
+                    slideEls.forEach(s => s.classList.remove('active'));
+                    dots.forEach(d => d.classList.remove('active'));
+                    setTimeout(() => { endScreen.classList.add('show'); }, 600);
+                }
+
+                function replay() {
+                    endScreen.classList.remove('show');
+                    progressBar.style.width = '0%';
+                    current = 0; elapsed = 0;
+                    playing = true;
+                    controls.classList.add('visible');
+                    startTime = Date.now();
+                    rafId = requestAnimationFrame(tick);
+                    bgmAudio.play();
+                    playSlide(0);
+                    ppBtn.textContent = '⏸';
+                }
+
+                function toggleFullscreen() {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+                    } else {
+                        document.exitFullscreen && document.exitFullscreen();
+                    }
+                }
+
+                document.getElementById('startBtn').addEventListener('click', start);
+                ppBtn.addEventListener('click', togglePause);
+                document.getElementById('fsBtn').addEventListener('click', toggleFullscreen);
+                document.getElementById('replayBtn').addEventListener('click', replay);
+
+                document.getElementById('langMarathi').addEventListener('click', () => {
+                    currentLanguage = 'marathi';
+                    document.getElementById('langMarathi').style.background = 'rgba(200, 75, 255, 0.4)';
+                    document.getElementById('langMarathi').style.borderColor = '#c84bff';
+                    document.getElementById('langEnglish').style.background = 'rgba(255, 255, 255, 0.05)';
+                    document.getElementById('langEnglish').style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                });
+                document.getElementById('langEnglish').addEventListener('click', () => {
+                    currentLanguage = 'english';
+                    document.getElementById('langEnglish').style.background = 'rgba(200, 75, 255, 0.4)';
+                    document.getElementById('langEnglish').style.borderColor = '#c84bff';
+                    document.getElementById('langMarathi').style.background = 'rgba(255, 255, 255, 0.05)';
+                    document.getElementById('langMarathi').style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                });
+
+                document.getElementById('stage').addEventListener('click', () => {
+                    if (playing) controls.classList.toggle('visible');
+                });
+
+                document.getElementById('progressWrap').addEventListener('click', (e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const pct = (e.clientX - rect.left) / rect.width;
+                    const targetSlide = Math.min(Math.floor(pct * SLIDES), SLIDES - 1);
+                    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+                    cancelAnimationFrame(rafId);
+                    startTime = Date.now(); elapsed = 0;
+                    if (playing) {
+                        rafId = requestAnimationFrame(tick);
+                        playSlide(targetSlide);
+                    } else {
+                        showSlide(targetSlide);
+                        current = targetSlide;
+                    }
+                });
+            </script>
+        </body>
 
 </html>

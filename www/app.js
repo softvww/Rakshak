@@ -52,6 +52,13 @@ let callerSpeech = null;
 let currentQuestionIndex = 0;
 let quizScore = 0;
 
+// Shake Detection States
+let isShakeDetectorActive = false;
+let shakeLastX = null, shakeLastY = null, shakeLastZ = null;
+let shakeLastTime = 0;
+const SHAKE_THRESHOLD = 18; // m/s² — sensitivity
+let shakeCooldownActive = false;
+
 // ---- Translations Dictionary ----
 const translations = {
     'brandLogo': { en: 'RAKSHAK', mr: 'रक्षक' },
@@ -198,6 +205,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Load Local Storage Data
     loadContacts();
+
+    // Initialize Shake Detector (auto ON if previously enabled)
+    const shakeEnabled = localStorage.getItem('rakshak_shake') === 'true';
+    if (shakeEnabled) {
+        initShakeDetector();
+    }
+    // Sync toggle UI
+    const shakeToggle = document.getElementById('shakeDetectorToggle');
+    if (shakeToggle) shakeToggle.checked = shakeEnabled;
     loadReportedIncidents();
 
     // Initialize Maps
@@ -206,26 +222,32 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initial Quiz Load
     loadQuizQuestion();
 
-    // Set English language by default
-    applyLanguage('en');
+    // Load language preference
+    const savedLang = localStorage.getItem('rakshak_lang');
+    if (savedLang) {
+        currentLang = savedLang;
+        applyLanguage(currentLang);
+    } else {
+        applyLanguage('mr'); // Default to Marathi for this user
+    }
 });
 
 // Update Digital Clock & HUD Timestamps
 function updateClock() {
     const timeEl = document.getElementById("lblClock");
     const hudTimeEl = document.getElementById("hudTimestamp");
-    
+
     const now = new Date();
     let hours = now.getHours();
     let minutes = now.getMinutes();
     let seconds = now.getSeconds();
     const ampm = hours >= 12 ? 'PM' : 'AM';
-    
+
     hours = hours % 12;
     hours = hours ? hours : 12; // 12hr format
     minutes = minutes < 10 ? '0' + minutes : minutes;
     seconds = seconds < 10 ? '0' + seconds : seconds;
-    
+
     if (timeEl) {
         timeEl.textContent = `${hours}:${minutes} ${ampm}`;
     }
@@ -239,6 +261,7 @@ function updateClock() {
 // ============================================================
 function toggleLanguage() {
     currentLang = currentLang === 'en' ? 'mr' : 'en';
+    localStorage.setItem('rakshak_lang', currentLang);
     applyLanguage(currentLang);
 }
 
@@ -312,7 +335,7 @@ function switchTab(tabId) {
 
     // Remove active class from buttons
     document.querySelectorAll(".nav-tab-item").forEach(btn => btn.classList.remove("active"));
-    
+
     // Add active class to clicked button
     const activeBtn = document.getElementById(`navBtn-${tabId}`);
     if (activeBtn) activeBtn.classList.add("active");
@@ -330,7 +353,7 @@ function switchTab(tabId) {
     }
 
     currentTab = tabId;
-    
+
     // Auto center map on tab change to prevent rendering gray boxes
     if (tabId === 'map' && safetyMap) {
         setTimeout(() => {
@@ -353,10 +376,10 @@ function startSosSequence() {
     // Start 3 Second Countdown
     isSosCountdownRunning = true;
     sosCountdownVal = 3;
-    
+
     const ring = document.getElementById("countdownRing");
     const number = document.getElementById("countdownSec");
-    
+
     ring.classList.add("show");
     number.textContent = sosCountdownVal;
 
@@ -385,15 +408,15 @@ function cancelSosSequence() {
 
 function triggerEmergencySOS() {
     isSosActive = true;
-    
+
     // 1. Play siren alarm
     playSiren();
-    
+
     // 2. Start Strobe screen flash
     document.getElementById("strobeOverlay").classList.add("active");
     document.getElementById("btnToolStrobe").classList.add("active");
     document.getElementById("btnToolSiren").classList.add("active");
-    
+
     // 3. Switch header tag to Emergency
     const tag = document.getElementById("safetyStatusTag");
     tag.classList.add("emergency");
@@ -407,7 +430,7 @@ function triggerEmergencySOS() {
     // 4. Force Switch Tab to Camera and start streaming / snapshots
     switchTab('camera');
     startCameraStream();
-    
+
     // Start automated snap interval (every 5 seconds)
     autoSnapshotTimer = setInterval(() => {
         if (cameraStreamObj) {
@@ -424,10 +447,10 @@ function triggerEmergencySOS() {
 
 function stopSosActiveState() {
     isSosActive = false;
-    
+
     // Stop Siren
     stopSiren();
-    
+
     // Stop Strobe Light
     document.getElementById("strobeOverlay").classList.remove("active");
     document.getElementById("btnToolStrobe").classList.remove("active");
@@ -478,25 +501,25 @@ function playSiren() {
         sirenGain = audioCtx.createGain();
         sirenOsc1 = audioCtx.createOscillator();
         sirenOsc2 = audioCtx.createOscillator();
-        
+
         sirenOsc1.type = 'sawtooth';
         sirenOsc1.frequency.setValueAtTime(800, audioCtx.currentTime); // Base Frequency
-        
+
         // Wail modulator oscillator
         sirenOsc2.type = 'sine';
         sirenOsc2.frequency.setValueAtTime(2, audioCtx.currentTime); // 2Hz wail speed
-        
+
         let osc2Gain = audioCtx.createGain();
         osc2Gain.gain.setValueAtTime(300, audioCtx.currentTime); // modulation pitch bounds
-        
+
         sirenOsc2.connect(osc2Gain);
         osc2Gain.connect(sirenOsc1.frequency);
-        
+
         sirenOsc1.connect(sirenGain);
         sirenGain.connect(audioCtx.destination);
-        
+
         sirenGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-        
+
         sirenOsc1.start();
         sirenOsc2.start();
         isSirenPlaying = true;
@@ -507,12 +530,12 @@ function playSiren() {
 
 function stopSiren() {
     if (sirenOsc1) {
-        try { sirenOsc1.stop(); } catch(e){}
+        try { sirenOsc1.stop(); } catch (e) { }
         sirenOsc1.disconnect();
         sirenOsc1 = null;
     }
     if (sirenOsc2) {
-        try { sirenOsc2.stop(); } catch(e){}
+        try { sirenOsc2.stop(); } catch (e) { }
         sirenOsc2.disconnect();
         sirenOsc2 = null;
     }
@@ -535,6 +558,102 @@ function toggleStrobeFlash() {
         btn.classList.add("active");
         showToast(currentLang === 'en' ? "Visual Flash Alert Triggered" : "फ्लॅश लाईट इमर्जन्सी सुरू", "success");
     }
+}
+
+// ============================================================
+// SHAKE-TO-SOS DETECTOR
+// ============================================================
+function toggleShakeDetector() {
+    const toggle = document.getElementById('shakeDetectorToggle');
+    if (toggle.checked) {
+        initShakeDetector();
+    } else {
+        stopShakeDetector();
+    }
+}
+
+function initShakeDetector() {
+    if (!window.DeviceMotionEvent) {
+        showToast(currentLang === 'en' ? '⚠️ Shake detection not supported on this device.' : '⚠️ हे डिव्हाइस Shake Detection ला सपोर्ट करत नाही.', 'warn');
+        const toggle = document.getElementById('shakeDetectorToggle');
+        if (toggle) toggle.checked = false;
+        return;
+    }
+
+    // iOS 13+ requires permission
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+            .then(perm => {
+                if (perm === 'granted') {
+                    window.addEventListener('devicemotion', handleShakeMotion);
+                    isShakeDetectorActive = true;
+                    localStorage.setItem('rakshak_shake', 'true');
+                    const sb1 = document.getElementById('shakeStatusBar');
+                    if (sb1) sb1.style.display = 'block';
+                    showToast(currentLang === 'en' ? '📳 Shake Detector ON! Shake phone 3x for SOS.' : '📳 Shake डिटेक्टर चालू! SOS साठी फोन ३ वेळा हलवा.', 'success');
+                } else {
+                    showToast(currentLang === 'en' ? '❌ Motion permission denied.' : '❌ Motion Permission नाकारली.', 'warn');
+                    const toggle = document.getElementById('shakeDetectorToggle');
+                    if (toggle) toggle.checked = false;
+                }
+            })
+            .catch(() => {
+                showToast(currentLang === 'en' ? '❌ Could not get motion permission.' : '❌ Permission मिळाली नाही.', 'warn');
+            });
+    } else {
+        window.addEventListener('devicemotion', handleShakeMotion);
+        isShakeDetectorActive = true;
+        localStorage.setItem('rakshak_shake', 'true');
+        const sb2 = document.getElementById('shakeStatusBar');
+        if (sb2) sb2.style.display = 'block';
+        showToast(currentLang === 'en' ? '📳 Shake Detector ON! Shake phone 3x for SOS.' : '📳 Shake डिटेक्टर चालू! SOS साठी फोन ३ वेळा हलवा.', 'success');
+    }
+}
+
+function stopShakeDetector() {
+    window.removeEventListener('devicemotion', handleShakeMotion);
+    isShakeDetectorActive = false;
+    shakeLastX = null; shakeLastY = null; shakeLastZ = null;
+    localStorage.setItem('rakshak_shake', 'false');
+    const sb = document.getElementById('shakeStatusBar');
+    if (sb) sb.style.display = 'none';
+    showToast(currentLang === 'en' ? '📳 Shake Detector OFF.' : '📳 Shake डिटेक्टर बंद केला.', 'warn');
+}
+
+function handleShakeMotion(event) {
+    if (!isShakeDetectorActive || isSosActive || shakeCooldownActive) return;
+
+    const acc = event.accelerationIncludingGravity;
+    if (!acc) return;
+
+    const now = Date.now();
+    if (now - shakeLastTime < 200) return; // debounce 200ms
+    shakeLastTime = now;
+
+    const { x, y, z } = acc;
+
+    if (shakeLastX !== null) {
+        const deltaX = Math.abs(x - shakeLastX);
+        const deltaY = Math.abs(y - shakeLastY);
+        const deltaZ = Math.abs(z - shakeLastZ);
+
+        if (deltaX > SHAKE_THRESHOLD || deltaY > SHAKE_THRESHOLD || deltaZ > SHAKE_THRESHOLD) {
+            // Shake detected! — trigger SOS
+            shakeCooldownActive = true;
+            setTimeout(() => { shakeCooldownActive = false; }, 5000); // 5s cooldown
+
+            showToast(
+                currentLang === 'en' ? '📳 Shake detected! SOS triggering...' : '📳 Phone हलवला! SOS सुरू होत आहे...',
+                'warn'
+            );
+            // Trigger SOS directly (skip countdown for speed)
+            setTimeout(() => {
+                if (!isSosActive) triggerEmergencySOS();
+            }, 500);
+        }
+    }
+
+    shakeLastX = x; shakeLastY = y; shakeLastZ = z;
 }
 
 // ============================================================
@@ -583,8 +702,26 @@ function shareLocationToAll() {
 function shareLocationToOne(contact) {
     const msg = buildLocationMessage(contact.name);
     const phone = contact.phone.replace(/\D/g, ''); // digits only
+
+    // Try WhatsApp first, fallback to SMS if WhatsApp not installed
     const waUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`;
-    window.open(waUrl, '_blank');
+    const smsUrl = `sms:+91${phone}?body=${encodeURIComponent(msg)}`;
+
+    // On Android WebView, wa.me opens WhatsApp directly
+    // We open WhatsApp; if it fails user sees SMS option in our toast
+    const win = window.open(waUrl, '_blank');
+
+    // Fallback: if blocked or null (popup blocker), try SMS
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+        window.location.href = smsUrl;
+    }
+}
+
+// Emergency SMS (if WhatsApp unavailable)
+function sendSmsAlert(contact) {
+    const msg = buildLocationMessage(contact.name);
+    const phone = contact.phone.replace(/\D/g, '');
+    window.location.href = `sms:+91${phone}?body=${encodeURIComponent(msg)}`;
 }
 
 function renderIndividualShareButtons() {
@@ -618,7 +755,7 @@ function renderIndividualShareButtons() {
 function simulateEmergencyAlertSends() {
     // Also auto-find police station on SOS
     findNearestPolice();
-    
+
     if (guardianContacts.length === 0) {
         showToast(currentLang === 'en' ? "⚠️ No guardians! Add contacts in Circle tab." : "⚠️ रक्षक गट रिकामा आहे! Circle मध्ये संपर्क जोडा.", "warn");
         return;
@@ -760,8 +897,8 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ============================================================
@@ -772,24 +909,24 @@ async function toggleScreamDetector() {
     if (checkbox.checked) {
         try {
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
+
             const context = new (window.AudioContext || window.webkitAudioContext)();
             analyser = context.createAnalyser();
             analyser.fftSize = 256;
-            
+
             audioSource = context.createMediaStreamSource(micStream);
             audioSource.connect(analyser);
-            
+
             document.getElementById("audioVisualBar").style.display = "block";
             isScreamDetectorActive = true;
             showToast(currentLang === 'en' ? "Scream detector listening..." : "किंचाळणे शोधक सक्रिय झाले...", "success");
-            
+
             let dataArray = new Uint8Array(analyser.frequencyBinCount);
-            
+
             screamInterval = setInterval(() => {
                 if (!isScreamDetectorActive) return;
                 analyser.getByteFrequencyData(dataArray);
-                
+
                 let sum = 0;
                 for (let i = 0; i < dataArray.length; i++) {
                     sum += dataArray[i];
@@ -797,14 +934,14 @@ async function toggleScreamDetector() {
                 let avg = sum / dataArray.length;
                 let volumePercent = Math.min((avg / 120) * 100, 100);
                 document.getElementById("audioFillProgress").style.width = volumePercent + "%";
-                
+
                 // Average amplitude threshold of 82 acts as loud scream/siren
                 if (avg > 82 && !isSosActive && !isSosCountdownRunning) {
                     showToast(currentLang === 'en' ? "Loud noise/Scream detected!" : "मोठा आवाज / किंचाळणे आढळले!", "warn");
                     startSosSequence();
                 }
             }, 100);
-            
+
         } catch (e) {
             console.error("Mic access for scream check failed: ", e);
             checkbox.checked = false;
@@ -842,24 +979,24 @@ async function startCameraStream() {
     const placeholder = document.getElementById("cameraPlaceholder");
     const scanline = document.getElementById("cameraScanline");
     const hud = document.getElementById("cameraHUD");
-    
+
     try {
         if (cameraStreamObj) {
             stopCameraStream();
         }
-        
+
         let constraints = {
             video: { facingMode: activeFacingMode },
             audio: false
         };
-        
+
         cameraStreamObj = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = cameraStreamObj;
-        
+
         placeholder.style.display = "none";
         scanline.classList.add("active");
         hud.classList.add("active");
-        
+
         document.getElementById("btnStartCamera").style.display = "none";
         document.getElementById("btnStopCamera").style.display = "block";
     } catch (e) {
@@ -873,7 +1010,7 @@ function stopCameraStream() {
     const placeholder = document.getElementById("cameraPlaceholder");
     const scanline = document.getElementById("cameraScanline");
     const hud = document.getElementById("cameraHUD");
-    
+
     if (cameraStreamObj) {
         cameraStreamObj.getTracks().forEach(track => track.stop());
         cameraStreamObj = null;
@@ -882,7 +1019,7 @@ function stopCameraStream() {
     placeholder.style.display = "flex";
     scanline.classList.remove("active");
     hud.classList.remove("active");
-    
+
     document.getElementById("btnStartCamera").style.display = "block";
     document.getElementById("btnStopCamera").style.display = "none";
 }
@@ -906,27 +1043,27 @@ function takeSnapshotManual() {
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 480;
     canvas.height = video.videoHeight || 360;
-    
+
     const ctx = canvas.getContext("2d");
     // Draw current video frame onto temporary canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
+
     const imgData = canvas.toDataURL("image/jpeg", 0.7);
-    
+
     // Add to photo ledger
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
+
     photoLedger.unshift({
         src: imgData,
         time: timeStr
     });
-    
+
     // Keep max 8 photos to prevent storage overflow
     if (photoLedger.length > 8) {
         photoLedger.pop();
     }
-    
+
     renderSnapshots();
     showToast(currentLang === 'en' ? "Snapshot added to safety ledger" : "फोटो सुरक्षित गॅलरीमध्ये सेव्ह केला", "success");
 }
@@ -934,17 +1071,17 @@ function takeSnapshotManual() {
 function renderSnapshots() {
     const grid = document.getElementById("snapshotsGrid");
     grid.innerHTML = "";
-    
+
     if (photoLedger.length === 0) {
         grid.innerHTML = `<div style="grid-column: span 4; font-size:11px; text-align:center; color:var(--text-muted); font-style:italic;">No snaps captured yet</div>`;
         return;
     }
-    
+
     photoLedger.forEach(pic => {
         const item = document.createElement("div");
         item.className = "snapshot-item";
         item.onclick = () => viewPhotoModal(pic.src);
-        
+
         item.innerHTML = `
             <img src="${pic.src}" alt="Safety Snap">
             <span class="snapshot-time">${pic.time}</span>
@@ -956,7 +1093,7 @@ function renderSnapshots() {
 function viewPhotoModal(imgSrc) {
     // Open a simple window/modal preview
     const previewWin = window.open();
-    if(previewWin) {
+    if (previewWin) {
         previewWin.document.write(`<img src="${imgSrc}" style="width:100%; max-width:600px; display:block; margin:20px auto; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.5)">`);
         previewWin.document.title = "Rakshak Surveillance Snap";
     }
@@ -981,13 +1118,13 @@ function initMap() {
             iconSize: [14, 14],
             iconAnchor: [7, 7]
         });
-        
+
         userMarker = L.marker(currentCoordinates, { icon: userIcon }).addTo(safetyMap);
         userMarker.bindPopup(currentLang === 'en' ? "<b>You are here</b>" : "<b>तुम्ही येथे आहात</b>").openPopup();
 
         // Load incidents markers
         plotReportedIncidentMarkers();
-        
+
         // Plot local safe hubs
         plotSafeHubsMarkers();
         renderSafeHubs();
@@ -1002,24 +1139,24 @@ function findCurrentLocation() {
         showToast(currentLang === 'en' ? "Geolocation not supported" : "स्थान परवाना उपलब्ध नाही", "warn");
         return;
     }
-    
+
     showToast(currentLang === 'en' ? "Locating device..." : "स्थान शोधत आहे...", "success");
-    
+
     navigator.geolocation.getCurrentPosition(position => {
         currentCoordinates = [position.coords.latitude, position.coords.longitude];
-        
+
         if (safetyMap) {
             safetyMap.setView(currentCoordinates, 15);
             if (userMarker) {
                 userMarker.setLatLng(currentCoordinates);
                 userMarker.bindPopup(currentLang === 'en' ? "<b>Accurate Location Found</b>" : "<b>अचूक स्थान सापडले</b>").openPopup();
             }
-            
+
             // Replot hubs around new position
             plotSafeHubsMarkers();
             renderSafeHubs();
         }
-        
+
         showToast(currentLang === 'en' ? "Location Synchronized" : "स्थान अचूकपणे जोडले गेले", "success");
     }, err => {
         console.error(err);
@@ -1079,9 +1216,9 @@ function renderSafeHubs() {
     hubs.forEach(h => {
         const item = document.createElement("div");
         item.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);";
-        
+
         let typeIcon = h.type === 'police' ? "🛡️" : "🏥";
-        
+
         item.innerHTML = `
             <div>
                 <span style="font-weight:700; color:var(--text-primary);">${h.name[currentLang]}</span><br>
@@ -1105,14 +1242,14 @@ function closeIncidentModal() {
 function submitDangerIncident() {
     const typeSelect = document.getElementById("inputIncidentTitle");
     const descInput = document.getElementById("inputIncidentDesc");
-    
+
     const type = typeSelect.value;
     const desc = descInput.value.trim();
-    
+
     // Create random offset coordinate slightly off current location so it plots near user
     const randomOffsetLat = (Math.random() - 0.5) * 0.008;
     const randomOffsetLng = (Math.random() - 0.5) * 0.008;
-    
+
     const newIncident = {
         id: Date.now(),
         type: type,
@@ -1176,16 +1313,16 @@ function closeFakeCallModal() {
 function scheduleFakeCallAction() {
     const nameInput = document.getElementById("inputFakeCaller");
     const delaySelect = document.getElementById("inputFakeDelay");
-    
+
     const callerName = nameInput.value.trim() || (currentLang === 'en' ? "Papa" : "बाबा");
     const seconds = parseInt(delaySelect.value);
-    
+
     closeFakeCallModal();
-    
+
     showToast(currentLang === 'en' ? `Call scheduled in ${seconds}s` : `कॉल ${seconds} सेकंदात येईल`, "success");
-    
+
     if (fakeCallTimer) clearTimeout(fakeCallTimer);
-    
+
     fakeCallTimer = setTimeout(() => {
         triggerFakeIncomingCall(callerName);
     }, seconds * 1000);
@@ -1193,7 +1330,7 @@ function scheduleFakeCallAction() {
 
 function triggerFakeIncomingCall(name) {
     fakeCallActive = true;
-    
+
     const overlay = document.getElementById("fakeIncomingCallOverlay");
     const nameEl = document.getElementById("fakeCallerName");
     const statusEl = document.getElementById("fakeCallStatus");
@@ -1201,7 +1338,7 @@ function triggerFakeIncomingCall(name) {
 
     overlay.classList.remove("in-call");
     overlay.classList.add("active");
-    
+
     nameEl.textContent = name;
     statusEl.textContent = currentLang === 'en' ? "Incoming Safety Call..." : "इनकमिंग कॉल...";
     avatar.classList.add("ringing");
@@ -1212,26 +1349,26 @@ function triggerFakeIncomingCall(name) {
 
 function playRingtoneBeeps() {
     if (callRingtoneInterval) clearInterval(callRingtoneInterval);
-    
+
     const speakRingtone = () => {
         if (!fakeCallActive) return;
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-            
+
             osc.type = "sine";
             // Realistic telephone ring pitch doublets: 440Hz and 480Hz combined
             osc.frequency.setValueAtTime(440, ctx.currentTime);
-            
+
             osc.connect(gain);
             gain.connect(ctx.destination);
-            
+
             gain.gain.setValueAtTime(0.2, ctx.currentTime);
-            
+
             osc.start();
             osc.stop(ctx.currentTime + 0.45);
-            
+
             setTimeout(() => {
                 const osc2 = ctx.createOscillator();
                 osc2.type = "sine";
@@ -1240,27 +1377,27 @@ function playRingtoneBeeps() {
                 osc2.start();
                 osc2.stop(ctx.currentTime + 0.45);
             }, 550);
-            
-        } catch(e){}
+
+        } catch (e) { }
     };
-    
+
     speakRingtone();
     callRingtoneInterval = setInterval(speakRingtone, 3000);
 }
 
 function acceptFakeCall() {
     clearInterval(callRingtoneInterval);
-    
+
     const overlay = document.getElementById("fakeIncomingCallOverlay");
     const statusEl = document.getElementById("fakeCallStatus");
     const avatar = document.getElementById("fakeCallAvatar");
-    
+
     overlay.classList.add("in-call");
     avatar.classList.remove("ringing");
-    
+
     statusEl.textContent = "00:00";
     activeCallSeconds = 0;
-    
+
     activeCallTimer = setInterval(() => {
         activeCallSeconds++;
         let mm = Math.floor(activeCallSeconds / 60);
@@ -1276,13 +1413,13 @@ function acceptFakeCall() {
 
 function speakSyntheticCallVoice() {
     if (!('speechSynthesis' in window)) return;
-    
+
     // Stop any ongoing speeches
     window.speechSynthesis.cancel();
-    
+
     let text = "";
     let speechLang = "en-US";
-    
+
     if (currentLang === 'en') {
         text = "Hello! I am nearby. I will reach you in two minutes. Stay on the line. Are you safe? Speak loudly!";
         speechLang = "en-US";
@@ -1290,11 +1427,11 @@ function speakSyntheticCallVoice() {
         text = "हॅलो! मी जवळच आलो आहे. मी दोन मिनिटांत पोहोचतोय. फोन चालू ठेव. तू ठीक आहेस ना? मोठ्याने बोल!";
         speechLang = "hi-IN"; // Hindi voice matches Marathi text phonetics beautifully on Android/Windows TTS
     }
-    
+
     callerSpeech = new SpeechSynthesisUtterance(text);
     callerSpeech.lang = speechLang;
     callerSpeech.rate = 0.95; // slightly slower for clarity
-    
+
     window.speechSynthesis.speak(callerSpeech);
 }
 
@@ -1302,14 +1439,14 @@ function declineFakeCall() {
     fakeCallActive = false;
     clearInterval(callRingtoneInterval);
     clearInterval(activeCallTimer);
-    
+
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
     }
-    
+
     const overlay = document.getElementById("fakeIncomingCallOverlay");
     overlay.classList.remove("active");
-    
+
     showToast(currentLang === 'en' ? "Call Terminated" : "कॉल समाप्त केला", "warn");
 }
 
@@ -1319,16 +1456,16 @@ function declineFakeCall() {
 function switchAcademyMode(mode) {
     const btnKids = document.getElementById("btnAcademyKids");
     const btnAdults = document.getElementById("btnAcademyAdults");
-    
+
     const contentKids = document.getElementById("academy-kids");
     const contentAdults = document.getElementById("academy-adults");
-    
+
     btnKids.classList.remove("active", "kids-mode");
     btnAdults.classList.remove("active", "adults-mode");
-    
+
     contentKids.classList.remove("active");
     contentAdults.classList.remove("active");
-    
+
     if (mode === 'kids') {
         btnKids.classList.add("active", "kids-mode");
         contentKids.classList.add("active");
@@ -1342,7 +1479,7 @@ function loadQuizQuestion() {
     const questEl = document.getElementById("quizQuestion");
     const optionsBox = document.getElementById("quizOptions");
     const badgeBox = document.getElementById("certificateBadgeBox");
-    
+
     if (!questEl || !optionsBox) return;
 
     if (currentQuestionIndex >= quizQuestions.length) {
@@ -1352,15 +1489,15 @@ function loadQuizQuestion() {
         badgeBox.style.display = "block";
         return;
     }
-    
+
     questEl.style.display = "block";
     badgeBox.style.display = "none";
-    
+
     const data = quizQuestions[currentQuestionIndex];
     questEl.textContent = `${currentQuestionIndex + 1}. ${data.q[currentLang]}`;
-    
+
     optionsBox.innerHTML = "";
-    
+
     data.options.forEach((opt, idx) => {
         const btn = document.createElement("button");
         btn.className = "quiz-option-btn";
@@ -1373,14 +1510,14 @@ function loadQuizQuestion() {
 function verifyQuizAnswer(idx, btnEl) {
     const data = quizQuestions[currentQuestionIndex];
     const optionsBox = document.getElementById("quizOptions");
-    
+
     // Disable all options
     Array.from(optionsBox.children).forEach(btn => {
         btn.disabled = true;
     });
-    
+
     const correctIdx = data.options.findIndex(o => o.correct);
-    
+
     if (idx === correctIdx) {
         btnEl.classList.add("correct");
         quizScore++;
@@ -1391,7 +1528,7 @@ function verifyQuizAnswer(idx, btnEl) {
         optionsBox.children[correctIdx].classList.add("correct");
         showToast(currentLang === 'en' ? "Oops! Incorrect." : "चूक! योग्य उत्तर दाखवले आहे.", "warn");
     }
-    
+
     // Proceed to next question after delay
     setTimeout(() => {
         currentQuestionIndex++;
@@ -1434,7 +1571,7 @@ function renderContacts() {
     const list = document.getElementById("contactsListContainer");
     if (!list) return;
     list.innerHTML = "";
-    
+
     if (guardianContacts.length === 0) {
         list.innerHTML = `
             <div class="empty-contacts-view">
@@ -1443,11 +1580,11 @@ function renderContacts() {
         `;
         return;
     }
-    
+
     guardianContacts.forEach((contact, idx) => {
         const row = document.createElement("div");
         row.className = "contact-item-row";
-        
+
         row.innerHTML = `
             <div class="contact-info-col">
                 <span class="contact-name-txt">${contact.name}</span>
@@ -1466,29 +1603,29 @@ function saveNewContact() {
     const nameVal = document.getElementById("inputContactName").value.trim();
     const phoneVal = document.getElementById("inputContactPhone").value.trim();
     const relationVal = document.getElementById("inputContactRelation").value.trim();
-    
+
     if (!nameVal || !phoneVal) {
         showToast(currentLang === 'en' ? "Please fill Name & Phone!" : "कृपया नाव आणि फोन नंबर टाका!", "warn");
         return;
     }
-    
+
     const newContact = {
         name: nameVal,
         phone: phoneVal,
         relation: relationVal || (currentLang === 'en' ? "Guardian" : "रक्षक")
     };
-    
+
     guardianContacts.push(newContact);
     localStorage.setItem("rakshak_contacts", JSON.stringify(guardianContacts));
-    
+
     renderContacts();
     closeContactModal();
-    
+
     // Reset values
     document.getElementById("inputContactName").value = "";
     document.getElementById("inputContactPhone").value = "";
     document.getElementById("inputContactRelation").value = "";
-    
+
     showToast(currentLang === 'en' ? "Guardian added successfully!" : "रक्षक यशस्वीरित्या जोडला गेला!", "success");
 }
 
@@ -1505,10 +1642,10 @@ function deleteContact(idx) {
 function showToast(msg, status = "info") {
     const toast = document.getElementById("toastNotification");
     const txt = document.getElementById("toastMessage");
-    
+
     txt.textContent = msg;
     toast.className = "toast-overlay show " + status;
-    
+
     // Select toast icon based on status
     const icon = toast.querySelector("i");
     if (icon) {
@@ -1517,7 +1654,7 @@ function showToast(msg, status = "info") {
         else icon.setAttribute("data-lucide", "info");
         lucide.createIcons();
     }
-    
+
     setTimeout(() => {
         toast.classList.remove("show");
     }, 3000);
@@ -1525,7 +1662,7 @@ function showToast(msg, status = "info") {
 
 function simulateDial(num, e) {
     e.preventDefault();
-    alert(currentLang === 'en' 
+    alert(currentLang === 'en'
         ? `📲 Simulated Dial: Calling ${num} helpline...`
         : `📲 सिम्युलेटेड डायल: ${num} हेल्पलाईनशी संपर्क साधत आहे...`
     );
@@ -1535,7 +1672,7 @@ function simulateDial(num, e) {
 function closeModalOnOuterClick(e, modalId) {
     if (e.target.id === modalId) {
         document.getElementById(modalId).classList.remove("active");
-        
+
         // Stop cameras if closed camera config
         if (modalId === 'addContactOverlay') {
             document.getElementById("inputContactName").value = "";

@@ -52,6 +52,13 @@ let callerSpeech = null;
 let currentQuestionIndex = 0;
 let quizScore = 0;
 
+// Shake Detection States
+let isShakeDetectorActive = false;
+let shakeLastX = null, shakeLastY = null, shakeLastZ = null;
+let shakeLastTime = 0;
+const SHAKE_THRESHOLD = 18; // m/s² — sensitivity
+let shakeCooldownActive = false;
+
 // ---- Translations Dictionary ----
 const translations = {
     'brandLogo': { en: 'RAKSHAK', mr: 'रक्षक' },
@@ -198,6 +205,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Load Local Storage Data
     loadContacts();
+
+    // Initialize Shake Detector (auto ON if previously enabled)
+    const shakeEnabled = localStorage.getItem('rakshak_shake') === 'true';
+    if (shakeEnabled) {
+        initShakeDetector();
+    }
+    // Sync toggle UI
+    const shakeToggle = document.getElementById('shakeDetectorToggle');
+    if (shakeToggle) shakeToggle.checked = shakeEnabled;
     loadReportedIncidents();
 
     // Initialize Maps
@@ -545,6 +561,102 @@ function toggleStrobeFlash() {
 }
 
 // ============================================================
+// SHAKE-TO-SOS DETECTOR
+// ============================================================
+function toggleShakeDetector() {
+    const toggle = document.getElementById('shakeDetectorToggle');
+    if (toggle.checked) {
+        initShakeDetector();
+    } else {
+        stopShakeDetector();
+    }
+}
+
+function initShakeDetector() {
+    if (!window.DeviceMotionEvent) {
+        showToast(currentLang === 'en' ? '⚠️ Shake detection not supported on this device.' : '⚠️ हे डिव्हाइस Shake Detection ला सपोर्ट करत नाही.', 'warn');
+        const toggle = document.getElementById('shakeDetectorToggle');
+        if (toggle) toggle.checked = false;
+        return;
+    }
+
+    // iOS 13+ requires permission
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+            .then(perm => {
+                if (perm === 'granted') {
+                    window.addEventListener('devicemotion', handleShakeMotion);
+                    isShakeDetectorActive = true;
+                    localStorage.setItem('rakshak_shake', 'true');
+                    const sb1 = document.getElementById('shakeStatusBar');
+                    if (sb1) sb1.style.display = 'block';
+                    showToast(currentLang === 'en' ? '📳 Shake Detector ON! Shake phone 3x for SOS.' : '📳 Shake डिटेक्टर चालू! SOS साठी फोन ३ वेळा हलवा.', 'success');
+                } else {
+                    showToast(currentLang === 'en' ? '❌ Motion permission denied.' : '❌ Motion Permission नाकारली.', 'warn');
+                    const toggle = document.getElementById('shakeDetectorToggle');
+                    if (toggle) toggle.checked = false;
+                }
+            })
+            .catch(() => {
+                showToast(currentLang === 'en' ? '❌ Could not get motion permission.' : '❌ Permission मिळाली नाही.', 'warn');
+            });
+    } else {
+        window.addEventListener('devicemotion', handleShakeMotion);
+        isShakeDetectorActive = true;
+        localStorage.setItem('rakshak_shake', 'true');
+        const sb2 = document.getElementById('shakeStatusBar');
+        if (sb2) sb2.style.display = 'block';
+        showToast(currentLang === 'en' ? '📳 Shake Detector ON! Shake phone 3x for SOS.' : '📳 Shake डिटेक्टर चालू! SOS साठी फोन ३ वेळा हलवा.', 'success');
+    }
+}
+
+function stopShakeDetector() {
+    window.removeEventListener('devicemotion', handleShakeMotion);
+    isShakeDetectorActive = false;
+    shakeLastX = null; shakeLastY = null; shakeLastZ = null;
+    localStorage.setItem('rakshak_shake', 'false');
+    const sb = document.getElementById('shakeStatusBar');
+    if (sb) sb.style.display = 'none';
+    showToast(currentLang === 'en' ? '📳 Shake Detector OFF.' : '📳 Shake डिटेक्टर बंद केला.', 'warn');
+}
+
+function handleShakeMotion(event) {
+    if (!isShakeDetectorActive || isSosActive || shakeCooldownActive) return;
+
+    const acc = event.accelerationIncludingGravity;
+    if (!acc) return;
+
+    const now = Date.now();
+    if (now - shakeLastTime < 200) return; // debounce 200ms
+    shakeLastTime = now;
+
+    const { x, y, z } = acc;
+
+    if (shakeLastX !== null) {
+        const deltaX = Math.abs(x - shakeLastX);
+        const deltaY = Math.abs(y - shakeLastY);
+        const deltaZ = Math.abs(z - shakeLastZ);
+
+        if (deltaX > SHAKE_THRESHOLD || deltaY > SHAKE_THRESHOLD || deltaZ > SHAKE_THRESHOLD) {
+            // Shake detected! — trigger SOS
+            shakeCooldownActive = true;
+            setTimeout(() => { shakeCooldownActive = false; }, 5000); // 5s cooldown
+
+            showToast(
+                currentLang === 'en' ? '📳 Shake detected! SOS triggering...' : '📳 Phone हलवला! SOS सुरू होत आहे...',
+                'warn'
+            );
+            // Trigger SOS directly (skip countdown for speed)
+            setTimeout(() => {
+                if (!isSosActive) triggerEmergencySOS();
+            }, 500);
+        }
+    }
+
+    shakeLastX = x; shakeLastY = y; shakeLastZ = z;
+}
+
+// ============================================================
 // LIVE LOCATION SHARE via WhatsApp
 // ============================================================
 
@@ -590,8 +702,26 @@ function shareLocationToAll() {
 function shareLocationToOne(contact) {
     const msg = buildLocationMessage(contact.name);
     const phone = contact.phone.replace(/\D/g, ''); // digits only
+
+    // Try WhatsApp first, fallback to SMS if WhatsApp not installed
     const waUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`;
-    window.open(waUrl, '_blank');
+    const smsUrl = `sms:+91${phone}?body=${encodeURIComponent(msg)}`;
+
+    // On Android WebView, wa.me opens WhatsApp directly
+    // We open WhatsApp; if it fails user sees SMS option in our toast
+    const win = window.open(waUrl, '_blank');
+
+    // Fallback: if blocked or null (popup blocker), try SMS
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+        window.location.href = smsUrl;
+    }
+}
+
+// Emergency SMS (if WhatsApp unavailable)
+function sendSmsAlert(contact) {
+    const msg = buildLocationMessage(contact.name);
+    const phone = contact.phone.replace(/\D/g, '');
+    window.location.href = `sms:+91${phone}?body=${encodeURIComponent(msg)}`;
 }
 
 function renderIndividualShareButtons() {

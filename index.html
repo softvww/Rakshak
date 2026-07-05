@@ -167,6 +167,27 @@
                     </div>
                 </div>
 
+                <!-- Shake-to-SOS Detector Switch -->
+                <div class="safety-card">
+                    <div class="detector-switch-row">
+                        <div class="switch-label-group">
+                            <h3 class="card-title" style="margin-bottom:0px">
+                                <i data-lucide="smartphone"></i> <span id="shakeTitle">Shake SOS Detector</span>
+                            </h3>
+                            <span class="switch-sublabel" id="shakeDesc">Shake phone hard to auto-trigger SOS & send
+                                alert to all guardians</span>
+                        </div>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="shakeDetectorToggle" onchange="toggleShakeDetector()">
+                            <span class="slider-switch red-mode"></span>
+                        </label>
+                    </div>
+                    <div id="shakeStatusBar"
+                        style="display:none; margin-top:10px; font-size:11px; color:var(--secondary); text-align:center; font-weight:600; letter-spacing:0.5px;">
+                        📳 SHAKE DETECTOR ACTIVE — SHAKE PHONE FOR SOS
+                    </div>
+                </div>
+
                 <!-- Parent Monitor Card -->
                 <div class="safety-card"
                     style="background: linear-gradient(135deg, rgba(8, 203, 255, 0.1), rgba(123, 47, 255, 0.1)); border-color: rgba(123, 47, 255, 0.3); border-width: 2px;">
@@ -342,9 +363,9 @@
 
                         <div
                             style="width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--card-border); background-color: #020617;">
-                            <iframe id="kidsVideoPlayer" src="safety_video.html"
-                                style="width: 100%; height: 260px; border: none; border-radius: 15px; background: #000;"
-                                allow="autoplay; fullscreen"></iframe>
+                            <video id="kidsVideoPlayer" src="rakshak_explainer_detailed.mp4"
+                                style="width: 100%; height: 260px; border: none; border-radius: 15px; background: #000; display: block;"
+                                controls playsinline controlsList="nodownload"></video>
                         </div>
                     </div>
 

